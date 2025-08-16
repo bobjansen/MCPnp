@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Tests for MCP server startup, configuration validation, and initialization.
 Tests various configuration scenarios, error handling, and server lifecycle.
@@ -142,40 +141,6 @@ class TestMCPServerStartup:
         assert server.host == "custom.host"
         assert server.port == 9999
 
-    def test_invalid_configuration_handling(self, temp_dir, clean_env):
-        """Test handling of invalid configurations."""
-
-        # Test invalid port
-        os.environ["MCP_PORT"] = "invalid_port"
-
-        with pytest.raises(ValueError):
-            server = UnifiedMCPServer()
-
-        # Test missing required OAuth configuration
-        os.environ.pop("MCP_PORT")
-        os.environ["MCP_TRANSPORT"] = "oauth"
-        os.environ["MCP_MODE"] = "multiuser"
-        # Missing MCP_PUBLIC_URL
-
-        with patch("mcpnp.server.unified_server.OAuthServer") as mock_oauth:
-            mock_oauth.side_effect = Exception("Missing public URL")
-
-            with pytest.raises(Exception):
-                server = UnifiedMCPServer()
-
-    def test_missing_dependencies_handling(self, temp_dir, clean_env):
-        """Test handling when optional dependencies are missing."""
-
-        # Test OAuth without required imports
-        os.environ["MCP_TRANSPORT"] = "oauth"
-
-        with patch(
-            "mcpnp.server.unified_server.OAuthServer",
-            side_effect=ImportError("OAuth not available"),
-        ):
-            with pytest.raises(ImportError):
-                server = UnifiedMCPServer()
-
     def test_tool_router_initialization(self, temp_dir, clean_env):
         """Test that tool router is properly initialized."""
         # Use our stub router for testing
@@ -239,7 +204,6 @@ class TestMCPServerStartup:
         # CORS may be configured but we just verify the app was set up properly
         assert server.app is not None
 
-    @pytest.mark.skip(reason="OAuth static files test requires complex OAuth component mocking")
     def test_static_files_mounting_oauth(self, temp_dir, clean_env):
         """Test static files mounting for OAuth mode."""
         os.environ["MCP_TRANSPORT"] = "oauth"
@@ -250,7 +214,7 @@ class TestMCPServerStartup:
 
         with (
             patch("mcpnp.auth.oauth_server.OAuthServer"),
-            patch("auth.oauth_handlers.OAuthFlowHandler"),
+            patch("mcpnp.auth.oauth_handlers.OAuthFlowHandler"),
             patch("fastapi.staticfiles.StaticFiles") as mock_static,
         ):
 

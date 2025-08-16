@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 End-to-End tests for different MCP transport modes.
 Tests FastMCP (stdio), HTTP REST, Server-Sent Events, and OAuth 2.1 transports.
@@ -213,22 +212,16 @@ class TestMCPTransportModes:
             routes = [route.path for route in server.app.routes]
             assert any("/events" in route for route in routes)
 
-    @pytest.mark.skip(reason="OAuth transport requires OAuth components not available")
     def test_oauth_transport_setup(self, temp_dir, base_env_setup):
         """Test OAuth 2.1 transport setup."""
         os.environ["MCP_TRANSPORT"] = "oauth"
         os.environ["MCP_MODE"] = "multiuser"
         os.environ["MCP_PUBLIC_URL"] = "http://localhost:18000"
-        os.environ["PANTRY_BACKEND"] = "postgresql"
-        os.environ["PANTRY_DATABASE_URL"] = (
-            "postgresql://test:test@localhost/test_oauth"
-        )
 
         # Mock OAuth components
         with (
-            patch("server.unified_server.OAuthServer") as mock_oauth,
-            patch("server.unified_server.OAuthFlowHandler") as mock_handler,
-            patch("pantry_manager_shared.SharedPantryManager") as mock_pm,
+            patch("mcpnp.server.unified_server.OAuthServer") as mock_oauth,
+            patch("mcpnp.server.unified_server.OAuthFlowHandler") as mock_handler,
         ):
 
             mock_oauth_instance = MagicMock()
@@ -238,7 +231,8 @@ class TestMCPTransportModes:
             mock_handler_instance = MagicMock()
             mock_handler.return_value = mock_handler_instance
 
-            server = UnifiedMCPServer()
+            tool_router = MCPToolRouter()
+            server = UnifiedMCPServer(tool_router=tool_router)
 
             # Verify server setup
             assert server.transport == "oauth"
@@ -259,7 +253,6 @@ class TestMCPTransportModes:
             for oauth_route in oauth_routes:
                 assert any(oauth_route in route for route in routes)
 
-    @pytest.mark.skip(reason="OAuth endpoints require OAuth components not available")
     def test_oauth_endpoints_mock(self, temp_dir, base_env_setup):
         """Test OAuth endpoints with mocked components."""
         os.environ["MCP_TRANSPORT"] = "oauth"
@@ -268,8 +261,8 @@ class TestMCPTransportModes:
 
         # Mock OAuth components
         with (
-            patch("server.unified_server.OAuthServer") as mock_oauth,
-            patch("server.unified_server.OAuthFlowHandler") as mock_handler,
+            patch("mcpnp.server.unified_server.OAuthServer") as mock_oauth,
+            patch("mcpnp.server.unified_server.OAuthFlowHandler") as mock_handler,
         ):
 
             # Setup OAuth mocks

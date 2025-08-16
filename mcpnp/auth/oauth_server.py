@@ -28,18 +28,6 @@ class OAuthServer:
     ):
         self.base_url = base_url.rstrip("/")
 
-        # Determine database backend
-        if use_postgresql is None:
-            use_postgresql = (
-                os.getenv("PANTRY_BACKEND", "sqlite").lower() == "postgresql"
-            )
-
-        self.use_postgresql = use_postgresql
-        self.db_path = Path("oauth.db")
-        self.postgres_url = os.getenv("PANTRY_DATABASE_URL")
-
-        self.init_database()
-
         # OAuth endpoints
         self.authorization_endpoint = f"{self.base_url}/authorize"
         self.token_endpoint = f"{self.base_url}/token"
@@ -52,104 +40,6 @@ class OAuthServer:
 
         # Load existing tokens from database on startup
         self._load_tokens_from_db()
-
-    def init_database(self):
-        """Initialize OAuth database."""
-        if self.use_postgresql:
-            self._init_postgresql()
-        else:
-            self._init_sqlite()
-
-    def _init_sqlite(self):
-        """Initialize SQLite OAuth database."""
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS oauth_clients (
-                    client_id TEXT PRIMARY KEY,
-                    client_secret TEXT,
-                    redirect_uris TEXT,
-                    client_name TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """
-            )
-
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS user_consents (
-                    user_id TEXT,
-                    client_id TEXT,
-                    scopes TEXT,
-                    granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY (user_id, client_id)
-                )
-            """
-            )
-
-            # Add token persistence tables
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS oauth_tokens (
-                    token TEXT PRIMARY KEY,
-                    token_type TEXT,
-                    user_id TEXT,
-                    client_id TEXT,
-                    scopes TEXT,
-                    expires_at INTEGER,
-                    token_data TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """
-            )
-
-    def _init_postgresql(self):
-        """Initialize PostgreSQL OAuth database."""
-        with psycopg2.connect(self.postgres_url) as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS oauth_clients (
-                        client_id TEXT PRIMARY KEY,
-                        client_secret TEXT,
-                        redirect_uris TEXT,
-                        client_name TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """
-                )
-
-                # Note: We'll use the existing users table from the shared schema
-                # No need to create a separate users table for OAuth
-
-                cursor.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS user_consents (
-                        user_id TEXT,
-                        client_id TEXT,
-                        scopes TEXT,
-                        granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        PRIMARY KEY (user_id, client_id)
-                    )
-                """
-                )
-
-                # Add token persistence table for PostgreSQL
-                cursor.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS oauth_tokens (
-                        token TEXT PRIMARY KEY,
-                        token_type TEXT,
-                        user_id TEXT,
-                        client_id TEXT,
-                        scopes TEXT,
-                        expires_at BIGINT,
-                        token_data TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """
-                )
-                conn.commit()
 
     def get_discovery_metadata(self) -> Dict:
         """OAuth 2.0 Authorization Server Metadata (RFC 8414)."""
@@ -336,7 +226,7 @@ class OAuthServer:
                     if client_secret:
                         cursor.execute(
                             """
-                            SELECT client_id, client_name FROM oauth_clients 
+                            SELECT client_id, client_name FROM oauth_clients
                             WHERE client_id = %s AND client_secret = %s
                         """,
                             (client_id, client_secret),
@@ -356,7 +246,7 @@ class OAuthServer:
                 if client_secret:
                     cursor = conn.execute(
                         """
-                        SELECT client_id, client_name FROM oauth_clients 
+                        SELECT client_id, client_name FROM oauth_clients
                         WHERE client_id = ? AND client_secret = ?
                     """,
                         (client_id, client_secret),
@@ -413,30 +303,11 @@ class OAuthServer:
 
     def validate_redirect_uri(self, client_id: str, redirect_uri: str) -> bool:
         """Validate redirect URI for client."""
-        if self.use_postgresql:
-            with psycopg2.connect(self.postgres_url) as conn:
-                with conn.cursor() as cursor:
-                    cursor.execute(
-                        """
-                        SELECT redirect_uris FROM oauth_clients WHERE client_id = %s
-                    """,
-                        (client_id,),
-                    )
-                    result = cursor.fetchone()
-        else:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.execute(
-                    """
-                    SELECT redirect_uris FROM oauth_clients WHERE client_id = ?
-                """,
-                    (client_id,),
-                )
-                result = cursor.fetchone()
-
+        result = client_id
         if not result:
             return False
 
-        allowed_uris = json.loads(result[0])
+        allowed_uris = []
 
         # Allow Claude.ai proxy redirects (flexible matching)
         if redirect_uri.startswith("https://claude.ai/api/organizations/") and (
@@ -725,7 +596,7 @@ class OAuthServer:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 """
-                INSERT OR REPLACE INTO oauth_tokens 
+                INSERT OR REPLACE INTO oauth_tokens
                 (token, token_type, user_id, client_id, scopes, expires_at, token_data)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -746,7 +617,7 @@ class OAuthServer:
             with conn.cursor() as cursor:
                 cursor.execute(
                     """
-                    INSERT INTO oauth_tokens 
+                    INSERT INTO oauth_tokens
                     (token, token_type, user_id, client_id, scopes, expires_at, token_data)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (token) DO UPDATE SET

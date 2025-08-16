@@ -5,7 +5,7 @@ Manages user authentication and database isolation for multi-user mode.
 """
 
 import os
-from typing import Optional, Callable
+from typing import Callable, Optional
 
 
 class UserManager:
@@ -37,21 +37,6 @@ class UserManager:
         # In multiuser mode, authentication is handled by OAuth
         # This method is not used for multiuser mode
         return None
-
-    def get_user_db_path(self, user_id: str) -> str:
-        """
-        Get the database path for a specific user.
-
-        For generic usage, this returns the path where a user's data should be stored.
-        The actual database file name and type can be configured by the calling application.
-        """
-        if self.mode == "local":
-            # In local mode, use environment variable or default
-            db_path = os.getenv("PANTRY_DB_PATH") or os.getenv("DB_PATH", "app.db")
-            return db_path
-
-        # In multiuser mode, PostgreSQL is used and this path is not relevant
-        return ""
 
     def create_user(self, username: str) -> str:
         """Create a new user and return their token."""

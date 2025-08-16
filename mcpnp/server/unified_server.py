@@ -165,7 +165,6 @@ class UnifiedMCPServer:
         self.security = None
 
         self._setup_transport()
-        self._setup_authentication()
 
         # Register OAuth endpoints after both transport and authentication are set up
         if self.app and self.oauth:
@@ -229,27 +228,15 @@ class UnifiedMCPServer:
                     )
                 return response
 
+            # Initialize OAuth components if needed
+            if self.transport == "oauth" and OAuthServer is not None:
+                self.oauth = OAuthServer()
+                self.oauth_handler = OAuthFlowHandler(self.oauth)
+                # Set up security for OAuth mode
+                self.security = HTTPBearer()
+
             self._register_http_endpoints()
 
-    def _setup_authentication(self):
-        """Setup authentication based on mode."""
-        if self.transport == "oauth" or self.auth_mode == "multiuser":
-            if OAuthServer is None:
-                raise ImportError(
-                    "OAuth components not available - install oauth dependencies"
-                )
-            # OAuth 2.1 authentication
-            public_url = os.getenv("MCP_PUBLIC_URL", f"http://{self.host}:{self.port}")
-            use_postgresql = (
-                os.getenv("PANTRY_BACKEND", "sqlite").lower() == "postgresql"
-            )
-
-            self.oauth = OAuthServer(base_url=public_url, use_postgresql=use_postgresql)
-            self.oauth_handler = OAuthFlowHandler(self.oauth)
-            # OAuth also needs HTTP Bearer for API endpoints
-            self.security = HTTPBearer(auto_error=False)
-
-        # No additional authentication setup needed for local mode HTTP/SSE
 
     def get_current_user(self, credentials=None) -> Optional[str]:
         """Extract user from authentication credentials."""
@@ -273,6 +260,15 @@ class UnifiedMCPServer:
             return self._get_user_data_manager_oauth(user_id)
         else:
             return self.context.authenticate_and_get_data_manager(token)
+
+    def _get_user_data_manager_oauth(self, user_id: Optional[str]) -> tuple[Optional[str], Optional[Any]]:
+        """Get user data manager for OAuth mode."""
+        if not user_id:
+            return None, None
+        
+        # Get data manager from context
+        data_manager = self.context.get_data_manager(user_id)
+        return user_id, data_manager
 
     def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Call a tool through the router with proper authentication."""
@@ -319,47 +315,6 @@ class UnifiedMCPServer:
         # Call the tool through the router
         return self.tool_router.call_tool(tool_name, arguments, data_manager)
 
-    def _get_user_data_manager_oauth(
-        self, user_id: str
-    ) -> tuple[Optional[str], Optional[Any]]:
-        """Get user data manager for OAuth mode."""
-        logger.debug(f"_get_user_data_manager_oauth called with user_id: {user_id}")
-        if not user_id:
-            logger.debug("user_id is None or empty, returning None")
-            return None, None
-
-        # Create or get data manager for OAuth user
-        if user_id not in self.context.data_managers:
-            if os.getenv("PANTRY_BACKEND", "sqlite").lower() == "postgresql":
-                # PostgreSQL with shared database and user_id scoping
-                from pantry_manager_shared import SharedPantryManager
-
-                database_url = os.getenv("PANTRY_DATABASE_URL")
-                if not database_url:
-                    logger.error("PANTRY_DATABASE_URL not set for PostgreSQL backend")
-                    return None, None
-
-                logger.debug(
-                    f"Creating SharedPantryManager for user_id={user_id} with database_url={database_url}"
-                )
-                self.context.data_managers[user_id] = SharedPantryManager(
-                    connection_string=database_url,
-                    user_id=int(user_id),
-                    backend="postgresql",
-                )
-            else:
-                db_path = self.context.user_manager.get_user_db_path(user_id)
-                if self.context.data_manager_factory:
-                    self.context.data_managers[user_id] = (
-                        self.context.data_manager_factory(
-                            backend="sqlite", connection_string=db_path
-                        )
-                    )
-                    if self.context.database_setup_func:
-                        self.context.database_setup_func(db_path)
-
-        self.context.set_current_user(user_id)
-        return user_id, self.context.data_managers.get(user_id)
 
     def _register_fastmcp_tools(self):
         """Register tools for FastMCP transport."""

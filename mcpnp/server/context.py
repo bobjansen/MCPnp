@@ -85,10 +85,3 @@ class MCPContext:
             "status": "error",
             "message": "User creation is handled by OAuth in multiuser mode",
         }
-
-    # Backwards compatibility method for recipe-specific usage
-    def authenticate_and_get_pantry(
-        self, token: Optional[str] = None
-    ) -> tuple[Optional[str], Optional[Any]]:
-        """Backwards compatibility alias for authenticate_and_get_data_manager."""
-        return self.authenticate_and_get_data_manager(token)

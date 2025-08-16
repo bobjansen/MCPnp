@@ -10,29 +10,18 @@ from unittest.mock import patch
 
 import pytest
 
-from auth.oauth_server import OAuthServer
+from mcpnp.auth.oauth_server import OAuthServer
 
 
 @contextmanager
 def setup_server(allowed_uris):
     """Create OAuthServer with temporary database populated with allowed URIs."""
     with (
-        patch.object(OAuthServer, "init_database"),
         patch.object(OAuthServer, "_load_tokens_from_db"),
     ):
-        server = OAuthServer(use_postgresql=False)
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        server.db_path = Path(tmpdir) / "oauth.db"
-        server.init_database()
+        server = OAuthServer()
         client_id = "test_client"
-        with sqlite3.connect(server.db_path) as conn:
-            conn.execute(
-                "INSERT INTO oauth_clients (client_id, client_secret, redirect_uris, client_name) VALUES (?, ?, ?, ?)",
-                (client_id, "secret", json.dumps(allowed_uris), "Test"),
-            )
         yield server, client_id
-
 
 def test_query_param_wildcard():
     allowed = ["https://example.com/callback?param=*"]

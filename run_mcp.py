@@ -30,7 +30,7 @@ import argparse
 
 def main():
     parser = argparse.ArgumentParser(
-        description="MealMCP Unified Server Launcher",
+        description="MCPnp Unified Server Launcher",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -75,21 +75,14 @@ def main():
             )
             os.environ["MCP_TRANSPORT"] = "oauth"
 
-    # Set database options
-    if args.backend:
-        os.environ["PANTRY_BACKEND"] = args.backend
-    if args.db_url:
-        os.environ["PANTRY_DATABASE_URL"] = args.db_url
-
     # Import after environment is set
     from mcpnp.server import UnifiedMCPServer
 
     # Create and run server
-    print(f"Starting MealMCP server:")
+    print(f"Starting MCPnp server:")
     print(f"  Transport: {args.transport}")
     print(f"  Auth Mode: {os.environ.get('MCP_MODE', 'local')}")
     print(f"  Address: {args.host}:{args.port}")
-    print(f"  Backend: {os.environ.get('PANTRY_BACKEND', 'sqlite')}")
     print()
 
     try:
