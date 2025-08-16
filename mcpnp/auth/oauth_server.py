@@ -3,19 +3,24 @@ OAuth 2.1 Authorization Server for MCP
 Implements OAuth 2.1 with PKCE for secure authentication
 """
 
-import os
-import secrets
-import hashlib
 import base64
+import hashlib
 import json
-import time
+import logging
+import os
 import re
-from typing import Dict, Optional, Tuple
-from urllib.parse import urlencode, parse_qs
+import secrets
+import time
 from datetime import datetime, timedelta
+from typing import Dict, Optional, Tuple
+from urllib.parse import parse_qs, urlencode
 from werkzeug.security import generate_password_hash
 
 from .datastore import OAuthDatastore
+
+logger = logging.getLogger(__name__)
+
+SCOPES = ["read", "write", "admin"]
 
 
 class OAuthServer:
@@ -47,7 +52,7 @@ class OAuthServer:
             "authorization_endpoint": self.authorization_endpoint,
             "token_endpoint": self.token_endpoint,
             "registration_endpoint": self.registration_endpoint,
-            "scopes_supported": ["read", "write", "admin"],
+            "scopes_supported": SCOPES,
             "response_types_supported": ["code"],
             "grant_types_supported": ["authorization_code", "refresh_token"],
             "code_challenge_methods_supported": ["S256"],
@@ -68,7 +73,7 @@ class OAuthServer:
         return {
             "resource": self.base_url,
             "authorization_servers": [self.base_url],
-            "scopes_supported": ["read", "write", "admin"],
+            "scopes_supported": SCOPES,
             "bearer_methods_supported": ["header"],
             "resource_documentation": f"{self.base_url}/docs",
         }
@@ -81,10 +86,10 @@ class OAuthServer:
         client_name = client_metadata.get("client_name", "Unnamed Client")
         redirect_uris = client_metadata.get("redirect_uris", [])
 
-        print(
-            f"[DEBUG] Registering client: {client_name}, redirect_uris: {redirect_uris}"
+        logger.debug(
+            f"Registering client: {client_name}, redirect_uris: {redirect_uris}"
         )
-        print(f"[DEBUG] Generated client_id: {client_id}")
+        logger.debug(f"Generated client_id: {client_id}")
 
         # For Claude.ai, automatically add common proxy redirect patterns
         if "claude" in client_name.lower() or any(
@@ -95,11 +100,13 @@ class OAuthServer:
                 redirect_uris.append(
                     "https://claude.ai/api/organizations/*/mcp/oauth/callback"
                 )
-                print(f"[DEBUG] Added Claude proxy redirect URI: {redirect_uris}")
+                logger.debug(f"Added Claude proxy redirect URI: {redirect_uris}")
 
         # Use datastore to register client
-        self.datastore.register_client(client_id, client_secret, redirect_uris, client_name)
-        print(f"[DEBUG] Client registered successfully")
+        self.datastore.register_client(
+            client_id, client_secret, redirect_uris, client_name
+        )
+        logger.debug("Client registered successfully")
 
         return {
             "client_id": client_id,
@@ -124,33 +131,33 @@ class OAuthServer:
         except Exception:
             return False
 
-
     def authenticate_user(self, username: str, password: str) -> Optional[str]:
         """Authenticate user credentials."""
         return self.datastore.authenticate_user(username, password)
 
-
     def validate_client(self, client_id: str, client_secret: str = None) -> bool:
         """Validate client credentials."""
-        print(f"[DEBUG] Validating client_id: {client_id}")
+        logger.debug(f"Validating client_id: {client_id}")
         result = self.datastore.validate_client(client_id, client_secret)
-        print(f"[DEBUG] Validation result: {result}")
+        logger.debug(f"Validation result: {result}")
         return result
 
     def register_existing_client(
         self, client_id: str, client_name: str, redirect_uris: list
     ) -> bool:
         """Register a client with a specific client_id (for Claude Desktop compatibility)."""
-        print(f"[DEBUG] Registering existing client_id: {client_id}")
+        logger.debug(f"Registering existing client_id: {client_id}")
 
         client_secret = secrets.token_urlsafe(32)
 
         try:
-            self.datastore.register_client(client_id, client_secret, redirect_uris, client_name)
-            print(f"[DEBUG] Existing client registered successfully")
+            self.datastore.register_client(
+                client_id, client_secret, redirect_uris, client_name
+            )
+            logger.debug("Existing client registered successfully")
             return True
         except Exception as e:
-            print(f"[DEBUG] Failed to register existing client: {e}")
+            logger.error(f"Failed to register existing client: {e}")
             return False
 
     def validate_redirect_uri(self, client_id: str, redirect_uri: str) -> bool:
@@ -377,5 +384,4 @@ class OAuthServer:
             self.access_tokens.update(access_tokens)
             self.refresh_tokens.update(refresh_tokens)
         except Exception as e:
-            print(f"Warning: Could not load tokens from database: {e}")
-
+            logger.warning(f"Could not load tokens from database: {e}")

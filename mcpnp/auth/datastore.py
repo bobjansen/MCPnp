@@ -17,7 +17,13 @@ class OAuthDatastore(ABC):
     """Abstract base class for OAuth data storage."""
 
     @abstractmethod
-    def register_client(self, client_id: str, client_secret: str, redirect_uris: List[str], client_name: str) -> None:
+    def register_client(
+        self,
+        client_id: str,
+        client_secret: str,
+        redirect_uris: List[str],
+        client_name: str,
+    ) -> None:
         """Register a new OAuth client."""
         pass
 
@@ -73,7 +79,8 @@ class SQLiteOAuthDatastore(OAuthDatastore):
         """Initialize SQLite database schema."""
         with sqlite3.connect(self.db_path) as conn:
             # OAuth clients table
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS oauth_clients (
                     client_id TEXT PRIMARY KEY,
                     client_secret TEXT NOT NULL,
@@ -81,10 +88,12 @@ class SQLiteOAuthDatastore(OAuthDatastore):
                     client_name TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-            """)
-            
+            """
+            )
+
             # Users table (simplified for SQLite mode)
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     username TEXT UNIQUE NOT NULL,
@@ -92,10 +101,12 @@ class SQLiteOAuthDatastore(OAuthDatastore):
                     email TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-            """)
-            
+            """
+            )
+
             # OAuth tokens table
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS oauth_tokens (
                     token TEXT PRIMARY KEY,
                     token_type TEXT NOT NULL,
@@ -106,9 +117,16 @@ class SQLiteOAuthDatastore(OAuthDatastore):
                     token_data TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-            """)
+            """
+            )
 
-    def register_client(self, client_id: str, client_secret: str, redirect_uris: List[str], client_name: str) -> None:
+    def register_client(
+        self,
+        client_id: str,
+        client_secret: str,
+        redirect_uris: List[str],
+        client_name: str,
+    ) -> None:
         """Register a new OAuth client."""
         redirect_uris_json = json.dumps(redirect_uris)
         with sqlite3.connect(self.db_path) as conn:
@@ -194,20 +212,20 @@ class SQLiteOAuthDatastore(OAuthDatastore):
         """Load all valid tokens from storage."""
         access_tokens = {}
         refresh_tokens = {}
-        
+
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
                 "SELECT token, token_type, token_data FROM oauth_tokens WHERE expires_at > ?",
                 (int(time.time()),),
             )
-            
+
             for token, token_type, token_data_json in cursor.fetchall():
                 token_data = json.loads(token_data_json)
                 if token_type == "access":
                     access_tokens[token] = token_data
                 elif token_type == "refresh":
                     refresh_tokens[token] = token_data
-        
+
         return access_tokens, refresh_tokens
 
     def remove_token(self, token: str) -> None:
@@ -228,7 +246,8 @@ class PostgreSQLOAuthDatastore(OAuthDatastore):
         with psycopg2.connect(self.connection_url) as conn:
             with conn.cursor() as cursor:
                 # OAuth clients table
-                cursor.execute("""
+                cursor.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS oauth_clients (
                         client_id TEXT PRIMARY KEY,
                         client_secret TEXT NOT NULL,
@@ -236,10 +255,12 @@ class PostgreSQLOAuthDatastore(OAuthDatastore):
                         client_name TEXT NOT NULL,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
-                """)
-                
+                """
+                )
+
                 # Users table
-                cursor.execute("""
+                cursor.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS users (
                         id SERIAL PRIMARY KEY,
                         username TEXT UNIQUE NOT NULL,
@@ -247,10 +268,12 @@ class PostgreSQLOAuthDatastore(OAuthDatastore):
                         email TEXT,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
-                """)
-                
+                """
+                )
+
                 # OAuth tokens table
-                cursor.execute("""
+                cursor.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS oauth_tokens (
                         token TEXT PRIMARY KEY,
                         token_type TEXT NOT NULL,
@@ -261,10 +284,17 @@ class PostgreSQLOAuthDatastore(OAuthDatastore):
                         token_data TEXT NOT NULL,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
-                """)
+                """
+                )
                 conn.commit()
 
-    def register_client(self, client_id: str, client_secret: str, redirect_uris: List[str], client_name: str) -> None:
+    def register_client(
+        self,
+        client_id: str,
+        client_secret: str,
+        redirect_uris: List[str],
+        client_name: str,
+    ) -> None:
         """Register a new OAuth client."""
         redirect_uris_json = json.dumps(redirect_uris)
         with psycopg2.connect(self.connection_url) as conn:
@@ -333,18 +363,18 @@ class PostgreSQLOAuthDatastore(OAuthDatastore):
     def authenticate_user(self, username: str, password: str) -> Optional[str]:
         """Authenticate user credentials. Returns user ID if valid."""
         from werkzeug.security import check_password_hash
-        
+
         with psycopg2.connect(self.connection_url) as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                 cursor.execute(
                     "SELECT id, username, password_hash FROM users WHERE username = %s",
                     (username,),
                 )
-                
+
                 user = cursor.fetchone()
                 if not user:
                     return None
-                
+
                 # Verify password using werkzeug's check_password_hash
                 if check_password_hash(user["password_hash"], password):
                     return str(user["id"])
@@ -378,21 +408,21 @@ class PostgreSQLOAuthDatastore(OAuthDatastore):
         """Load all valid tokens from storage."""
         access_tokens = {}
         refresh_tokens = {}
-        
+
         with psycopg2.connect(self.connection_url) as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
                     "SELECT token, token_type, token_data FROM oauth_tokens WHERE expires_at > %s",
                     (int(time.time()),),
                 )
-                
+
                 for token, token_type, token_data_json in cursor.fetchall():
                     token_data = json.loads(token_data_json)
                     if token_type == "access":
                         access_tokens[token] = token_data
                     elif token_type == "refresh":
                         refresh_tokens[token] = token_data
-        
+
         return access_tokens, refresh_tokens
 
     def remove_token(self, token: str) -> None:
