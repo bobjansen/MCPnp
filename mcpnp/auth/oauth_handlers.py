@@ -27,7 +27,7 @@ class OAuthFlowHandler:
                 and existing_data.get("user_id") == user_id
             ):
                 codes_to_remove.append(existing_code)
-                logger.info(f"Removing old authorization code: {existing_code}")
+                logger.info("Removing old authorization code: %s", existing_code)
 
         for old_code in codes_to_remove:
             del self.oauth.auth_codes[old_code]
@@ -56,7 +56,7 @@ class OAuthFlowHandler:
         # Store debug info
         if auth_code in self.oauth.auth_codes:
             self.oauth.auth_codes[auth_code]["debug_timestamp"] = time.time()
-            logger.info(f"Created authorization code: {auth_code}")
+            logger.info("Created authorization code: %s", auth_code)
 
         return auth_code
 
@@ -70,9 +70,9 @@ class OAuthFlowHandler:
 
         redirect_url = f"{redirect_uri}?{urlencode(params, safe='', quote_via=quote)}"
 
-        logger.info(f"OAuth flow successful! Redirecting to: {redirect_url}")
-        logger.info(f"Authorization code: {auth_code}")
-        logger.info(f"State parameter: {state}")
+        logger.info("OAuth flow successful! Redirecting to: %s", redirect_url)
+        logger.info("Authorization code: %s", auth_code)
+        logger.info("State parameter: %s", state)
 
         return RedirectResponse(url=redirect_url, status_code=302)
 
@@ -89,7 +89,7 @@ class OAuthFlowHandler:
             error_params["state"] = state
 
         redirect_url = f"{redirect_uri}?{urlencode(error_params)}"
-        logger.error(f"OAuth error redirect: {redirect_url}")
+        logger.error("OAuth error redirect: %s", redirect_url)
 
         return RedirectResponse(url=redirect_url, status_code=302)
 
@@ -100,7 +100,7 @@ class OAuthFlowHandler:
         if not redirect_uri.startswith("https://claude.ai/api/"):
             return False
 
-        logger.info(f"Auto-registering Claude client with ID: {client_id}")
+        logger.info("Auto-registering Claude client with ID: %s", client_id)
 
         redirect_uris = [redirect_uri, "https://claude.ai/api/mcp/auth_callback"]
         success = self.oauth.register_existing_client(
@@ -110,9 +110,9 @@ class OAuthFlowHandler:
         )
 
         if success:
-            logger.info(f"Successfully auto-registered Claude client: {client_id}")
+            logger.info("Successfully auto-registered Claude client: %s", client_id)
         else:
-            logger.error(f"Failed to auto-register Claude client: {client_id}")
+            logger.error("Failed to auto-register Claude client: %s", client_id)
 
         return success
 
@@ -122,7 +122,7 @@ class OAuthFlowHandler:
         """Validate OAuth authorization request parameters."""
         # Validate client
         if not self.oauth.validate_client(client_id):
-            logger.error(f"Invalid client_id: {client_id}")
+            logger.error("Invalid client_id: %s", client_id)
 
             # Try auto-registration for Claude
             if not self.handle_claude_auto_registration(client_id, redirect_uri):
@@ -130,12 +130,14 @@ class OAuthFlowHandler:
 
         # Validate redirect URI
         if not self.oauth.validate_redirect_uri(client_id, redirect_uri):
-            logger.error(f"Invalid redirect_uri for client {client_id}: {redirect_uri}")
+            logger.error(
+                "Invalid redirect_uri for client %s: %s", client_id, redirect_uri
+            )
             raise HTTPException(status_code=400, detail="Invalid redirect_uri")
 
         # PKCE is required
         if not code_challenge:
-            logger.error(f"Missing code_challenge for client {client_id}")
+            logger.error("Missing code_challenge for client %s", client_id)
             raise HTTPException(status_code=400, detail="code_challenge required")
 
     def authenticate_and_create_code(
@@ -151,14 +153,14 @@ class OAuthFlowHandler:
         """Authenticate user and create authorization code."""
         # Authenticate user
         user_id = self.oauth.authenticate_user(username, password)
-        logger.info(f"Authentication result for {username}: {user_id}")
+        logger.info("Authentication result for %s: %s", username, user_id)
 
         if not user_id:
-            logger.error(f"Authentication failed for username: {username}")
+            logger.error("Authentication failed for username: %s", username)
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
         # Create authorization code
-        logger.info(f"Creating authorization code for user {user_id}")
+        logger.info("Creating authorization code for user %s", user_id)
         auth_code = self.create_auth_code_with_cleanup(
             client_id,
             user_id,
@@ -184,7 +186,7 @@ class OAuthFlowHandler:
         """Register new user and create authorization code."""
         # Create user
         user_id = self.oauth.create_user(username, password, email)
-        logger.info(f"Created new user: {user_id}")
+        logger.info("Created new user: %s", user_id)
 
         # Create authorization code
         auth_code = self.create_auth_code_with_cleanup(

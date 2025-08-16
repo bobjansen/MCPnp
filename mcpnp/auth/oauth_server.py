@@ -87,9 +87,9 @@ class OAuthServer:
         redirect_uris = client_metadata.get("redirect_uris", [])
 
         logger.debug(
-            f"Registering client: {client_name}, redirect_uris: {redirect_uris}"
+            "Registering client: %s, redirect_uris: %s", client_name, redirect_uris
         )
-        logger.debug(f"Generated client_id: {client_id}")
+        logger.debug("Generated client_id: %s", client_id)
 
         # For Claude.ai, automatically add common proxy redirect patterns
         if "claude" in client_name.lower() or any(
@@ -100,7 +100,7 @@ class OAuthServer:
                 redirect_uris.append(
                     "https://claude.ai/api/organizations/*/mcp/oauth/callback"
                 )
-                logger.debug(f"Added Claude proxy redirect URI: {redirect_uris}")
+                logger.debug("Added Claude proxy redirect URI: %s", redirect_uris)
 
         # Use datastore to register client
         self.datastore.register_client(
@@ -137,16 +137,16 @@ class OAuthServer:
 
     def validate_client(self, client_id: str, client_secret: str = None) -> bool:
         """Validate client credentials."""
-        logger.debug(f"Validating client_id: {client_id}")
+        logger.debug("Validating client_id: %s", client_id)
         result = self.datastore.validate_client(client_id, client_secret)
-        logger.debug(f"Validation result: {result}")
+        logger.debug("Validation result: %s", result)
         return result
 
     def register_existing_client(
         self, client_id: str, client_name: str, redirect_uris: list
     ) -> bool:
         """Register a client with a specific client_id (for Claude Desktop compatibility)."""
-        logger.debug(f"Registering existing client_id: {client_id}")
+        logger.debug("Registering existing client_id: %s", client_id)
 
         client_secret = secrets.token_urlsafe(32)
 
@@ -157,7 +157,7 @@ class OAuthServer:
             logger.debug("Existing client registered successfully")
             return True
         except Exception as e:
-            logger.error(f"Failed to register existing client: {e}")
+            logger.error("Failed to register existing client: %s", e)
             return False
 
     def validate_redirect_uri(self, client_id: str, redirect_uri: str) -> bool:
@@ -384,4 +384,4 @@ class OAuthServer:
             self.access_tokens.update(access_tokens)
             self.refresh_tokens.update(refresh_tokens)
         except Exception as e:
-            logger.warning(f"Could not load tokens from database: {e}")
+            logger.warning("Could not load tokens from database: %s", e)
