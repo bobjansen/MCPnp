@@ -23,7 +23,6 @@ from mcp_tool_router import MCPToolRouter
 from mcpnp.server import UnifiedMCPServer
 
 
-
 class TestMCPServerStartup:
     """Test MCP server startup and configuration."""
 
@@ -106,7 +105,6 @@ class TestMCPServerStartup:
         # Security is only set up for OAuth mode, not HTTP local mode
         # assert server.security is not None  # Removed this assertion
 
-
     def test_sse_configuration(self, temp_dir, clean_env):
         """Test Server-Sent Events configuration."""
         os.environ["MCP_TRANSPORT"] = "sse"
@@ -146,7 +144,6 @@ class TestMCPServerStartup:
         # Use our stub router for testing
         tool_router = MCPToolRouter()
         server = UnifiedMCPServer(tool_router=tool_router)
-
 
         assert server.tool_router is not None
 

@@ -13,19 +13,18 @@ import re
 from typing import Dict, Optional, Tuple
 from urllib.parse import urlencode, parse_qs
 from datetime import datetime, timedelta
-import sqlite3
-from pathlib import Path
-import psycopg2
-from psycopg2.extras import RealDictCursor
-from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.security import generate_password_hash
+
+from .datastore import OAuthDatastore
 
 
 class OAuthServer:
     """OAuth 2.1 Authorization Server with PKCE support."""
 
     def __init__(
-        self, base_url: str = "http://localhost:8000", use_postgresql: bool = None
+        self, datastore: OAuthDatastore, base_url: str = "http://localhost:8000"
     ):
+        self.datastore = datastore
         self.base_url = base_url.rstrip("/")
 
         # OAuth endpoints
@@ -98,32 +97,9 @@ class OAuthServer:
                 )
                 print(f"[DEBUG] Added Claude proxy redirect URI: {redirect_uris}")
 
-        redirect_uris_json = json.dumps(redirect_uris)
-
-        if self.use_postgresql:
-            print(f"[DEBUG] Using PostgreSQL for client registration")
-            with psycopg2.connect(self.postgres_url) as conn:
-                with conn.cursor() as cursor:
-                    cursor.execute(
-                        """
-                        INSERT INTO oauth_clients (client_id, client_secret, redirect_uris, client_name)
-                        VALUES (%s, %s, %s, %s)
-                    """,
-                        (client_id, client_secret, redirect_uris_json, client_name),
-                    )
-                    conn.commit()
-                    print(f"[DEBUG] Client registered successfully in PostgreSQL")
-        else:
-            print(f"[DEBUG] Using SQLite for client registration")
-            with sqlite3.connect(self.db_path) as conn:
-                conn.execute(
-                    """
-                    INSERT INTO oauth_clients (client_id, client_secret, redirect_uris, client_name)
-                    VALUES (?, ?, ?, ?)
-                """,
-                    (client_id, client_secret, redirect_uris_json, client_name),
-                )
-                print(f"[DEBUG] Client registered successfully in SQLite")
+        # Use datastore to register client
+        self.datastore.register_client(client_id, client_secret, redirect_uris, client_name)
+        print(f"[DEBUG] Client registered successfully")
 
         return {
             "client_id": client_id,
@@ -136,131 +112,30 @@ class OAuthServer:
         }
 
     def create_user(self, username: str, password: str, email: str = None) -> str:
-        """Create a new user account.
-
-        In SQLite mode, authentication is disabled and a single default user is
-        always used. Username, password and email are ignored.
-        """
-        if self.use_postgresql:
-            return self._create_user_postgresql(username, password, email)
-        else:
-            return "1"  # Default single-user ID for SQLite mode
-
-    def _create_user_postgresql(
-        self, username: str, password: str, email: str = None
-    ) -> str:
-        """Create a new user account in PostgreSQL."""
-        # Hash password using same method as web interface (scrypt)
+        """Create a new user account."""
         password_hash = generate_password_hash(password, method="scrypt")
+        return self.datastore.create_user(username, password_hash, email)
 
-        with psycopg2.connect(self.postgres_url) as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                try:
-                    cursor.execute(
-                        """
-                        INSERT INTO users (username, password_hash, email)
-                        VALUES (%s, %s, %s) RETURNING id
-                    """,
-                        (username, password_hash, email),
-                    )
-                    result = cursor.fetchone()
-                    conn.commit()
-                    return str(result["id"])
-                except psycopg2.IntegrityError:
-                    raise ValueError("Username already exists")
+    def register_user(self, username: str, email: str, password: str) -> bool:
+        """Register a new user account. Returns True if successful."""
+        try:
+            self.create_user(username, password, email)
+            return True
+        except Exception:
+            return False
+
 
     def authenticate_user(self, username: str, password: str) -> Optional[str]:
-        """Authenticate user credentials.
+        """Authenticate user credentials."""
+        return self.datastore.authenticate_user(username, password)
 
-        For SQLite mode, no authentication is required and the default user ID
-        is always returned.
-        """
-        if self.use_postgresql:
-            return self._authenticate_user_postgresql(username, password)
-        else:
-            return "1"
-
-    def _authenticate_user_postgresql(
-        self, username: str, password: str
-    ) -> Optional[str]:
-        """Authenticate user credentials against PostgreSQL."""
-        print(f"[DEBUG] Attempting PostgreSQL authentication for username: {username}")
-
-        with psycopg2.connect(self.postgres_url) as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                # Get user with password hash
-                cursor.execute(
-                    "SELECT id, username, password_hash FROM users WHERE username = %s",
-                    (username,),
-                )
-
-                user = cursor.fetchone()
-                if not user:
-                    print(f"[DEBUG] User {username} does not exist in database")
-                    return None
-
-                print(
-                    f"[DEBUG] Found user {username} with hash type: {user['password_hash'][:10]}..."
-                )
-
-                # Verify password using werkzeug's check_password_hash (supports scrypt, bcrypt, etc.)
-                password_valid = check_password_hash(user["password_hash"], password)
-                print(f"[DEBUG] Password verification result: {password_valid}")
-
-                if password_valid:
-                    print(f"[DEBUG] Authentication successful for user {username}")
-                    return str(user["id"])
-                else:
-                    print(f"[DEBUG] Password verification failed for user {username}")
-                    return None
 
     def validate_client(self, client_id: str, client_secret: str = None) -> bool:
         """Validate client credentials."""
-        print(
-            f"[DEBUG] Validating client_id: {client_id}, use_postgresql: {self.use_postgresql}"
-        )
-
-        if self.use_postgresql:
-            with psycopg2.connect(self.postgres_url) as conn:
-                with conn.cursor() as cursor:
-                    if client_secret:
-                        cursor.execute(
-                            """
-                            SELECT client_id, client_name FROM oauth_clients
-                            WHERE client_id = %s AND client_secret = %s
-                        """,
-                            (client_id, client_secret),
-                        )
-                    else:
-                        cursor.execute(
-                            """
-                            SELECT client_id, client_name FROM oauth_clients WHERE client_id = %s
-                        """,
-                            (client_id,),
-                        )
-                    result = cursor.fetchone()
-                    print(f"[DEBUG] PostgreSQL query result: {result}")
-                    return result is not None
-        else:
-            with sqlite3.connect(self.db_path) as conn:
-                if client_secret:
-                    cursor = conn.execute(
-                        """
-                        SELECT client_id, client_name FROM oauth_clients
-                        WHERE client_id = ? AND client_secret = ?
-                    """,
-                        (client_id, client_secret),
-                    )
-                else:
-                    cursor = conn.execute(
-                        """
-                        SELECT client_id, client_name FROM oauth_clients WHERE client_id = ?
-                    """,
-                        (client_id,),
-                    )
-                result = cursor.fetchone()
-                print(f"[DEBUG] SQLite query result: {result}")
-                return result is not None
+        print(f"[DEBUG] Validating client_id: {client_id}")
+        result = self.datastore.validate_client(client_id, client_secret)
+        print(f"[DEBUG] Validation result: {result}")
+        return result
 
     def register_existing_client(
         self, client_id: str, client_name: str, redirect_uris: list
@@ -269,33 +144,10 @@ class OAuthServer:
         print(f"[DEBUG] Registering existing client_id: {client_id}")
 
         client_secret = secrets.token_urlsafe(32)
-        redirect_uris_json = json.dumps(redirect_uris)
 
         try:
-            if self.use_postgresql:
-                with psycopg2.connect(self.postgres_url) as conn:
-                    with conn.cursor() as cursor:
-                        cursor.execute(
-                            """
-                            INSERT INTO oauth_clients (client_id, client_secret, redirect_uris, client_name)
-                            VALUES (%s, %s, %s, %s)
-                        """,
-                            (client_id, client_secret, redirect_uris_json, client_name),
-                        )
-                        conn.commit()
-                        print(
-                            f"[DEBUG] Existing client registered successfully in PostgreSQL"
-                        )
-            else:
-                with sqlite3.connect(self.db_path) as conn:
-                    conn.execute(
-                        """
-                        INSERT INTO oauth_clients (client_id, client_secret, redirect_uris, client_name)
-                        VALUES (?, ?, ?, ?)
-                    """,
-                        (client_id, client_secret, redirect_uris_json, client_name),
-                    )
-                    print(f"[DEBUG] Existing client registered successfully in SQLite")
+            self.datastore.register_client(client_id, client_secret, redirect_uris, client_name)
+            print(f"[DEBUG] Existing client registered successfully")
             return True
         except Exception as e:
             print(f"[DEBUG] Failed to register existing client: {e}")
@@ -303,11 +155,10 @@ class OAuthServer:
 
     def validate_redirect_uri(self, client_id: str, redirect_uri: str) -> bool:
         """Validate redirect URI for client."""
-        result = client_id
-        if not result:
+        # Get allowed URIs from datastore
+        allowed_uris = self.datastore.get_client_redirect_uris(client_id)
+        if not allowed_uris:
             return False
-
-        allowed_uris = []
 
         # Allow Claude.ai proxy redirects (flexible matching)
         if redirect_uri.startswith("https://claude.ai/api/organizations/") and (
@@ -427,8 +278,8 @@ class OAuthServer:
         self.refresh_tokens[refresh_token] = refresh_token_data
 
         # Persist tokens to database
-        self._save_token_to_db(access_token, "access", access_token_data)
-        self._save_token_to_db(refresh_token, "refresh", refresh_token_data)
+        self.datastore.save_token(access_token, "access", access_token_data)
+        self.datastore.save_token(refresh_token, "refresh", refresh_token_data)
 
         # Clean up authorization code
         del self.auth_codes[code]
@@ -450,7 +301,7 @@ class OAuthServer:
 
         if time.time() > token_data["expires_at"]:
             del self.access_tokens[access_token]
-            self._remove_token_from_db(access_token)
+            self.datastore.remove_token(access_token)
             return None
 
         return token_data
@@ -465,7 +316,7 @@ class OAuthServer:
         # Check if refresh token is expired
         if "expires_at" in refresh_data and time.time() > refresh_data["expires_at"]:
             del self.refresh_tokens[refresh_token]
-            self._remove_token_from_db(refresh_token)
+            self.datastore.remove_token(refresh_token)
             raise ValueError("Refresh token expired")
 
         if refresh_data["client_id"] != client_id:
@@ -504,12 +355,12 @@ class OAuthServer:
         self.refresh_tokens[new_refresh_token] = new_refresh_token_data
 
         # Persist new tokens to database
-        self._save_token_to_db(new_access_token, "access", new_access_token_data)
-        self._save_token_to_db(new_refresh_token, "refresh", new_refresh_token_data)
+        self.datastore.save_token(new_access_token, "access", new_access_token_data)
+        self.datastore.save_token(new_refresh_token, "refresh", new_refresh_token_data)
 
         # Clean up old refresh token from memory and database
         del self.refresh_tokens[refresh_token]
-        self._remove_token_from_db(refresh_token)
+        self.datastore.remove_token(refresh_token)
 
         return {
             "access_token": new_access_token,
@@ -522,131 +373,9 @@ class OAuthServer:
     def _load_tokens_from_db(self):
         """Load existing tokens from database on startup."""
         try:
-            if self.use_postgresql:
-                self._load_tokens_postgresql()
-            else:
-                self._load_tokens_sqlite()
+            access_tokens, refresh_tokens = self.datastore.load_valid_tokens()
+            self.access_tokens.update(access_tokens)
+            self.refresh_tokens.update(refresh_tokens)
         except Exception as e:
             print(f"Warning: Could not load tokens from database: {e}")
 
-    def _load_tokens_sqlite(self):
-        """Load tokens from SQLite database."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT token, token_type, user_id, client_id, scopes, expires_at, token_data FROM oauth_tokens WHERE expires_at > ?",
-                (int(time.time()),),
-            )
-
-            for row in cursor.fetchall():
-                (
-                    token,
-                    token_type,
-                    user_id,
-                    client_id,
-                    scopes,
-                    expires_at,
-                    token_data_json,
-                ) = row
-                token_data = json.loads(token_data_json)
-
-                if token_type == "access":
-                    self.access_tokens[token] = token_data
-                elif token_type == "refresh":
-                    self.refresh_tokens[token] = token_data
-
-    def _load_tokens_postgresql(self):
-        """Load tokens from PostgreSQL database."""
-        with psycopg2.connect(self.postgres_url) as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    "SELECT token, token_type, user_id, client_id, scopes, expires_at, token_data FROM oauth_tokens WHERE expires_at > %s",
-                    (int(time.time()),),
-                )
-
-                for row in cursor.fetchall():
-                    (
-                        token,
-                        token_type,
-                        user_id,
-                        client_id,
-                        scopes,
-                        expires_at,
-                        token_data_json,
-                    ) = row
-                    token_data = json.loads(token_data_json)
-
-                    if token_type == "access":
-                        self.access_tokens[token] = token_data
-                    elif token_type == "refresh":
-                        self.refresh_tokens[token] = token_data
-
-    def _save_token_to_db(self, token: str, token_type: str, token_data: Dict):
-        """Save token to database."""
-        try:
-            if self.use_postgresql:
-                self._save_token_postgresql(token, token_type, token_data)
-            else:
-                self._save_token_sqlite(token, token_type, token_data)
-        except Exception as e:
-            print(f"Warning: Could not save token to database: {e}")
-
-    def _save_token_sqlite(self, token: str, token_type: str, token_data: Dict):
-        """Save token to SQLite database."""
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO oauth_tokens
-                (token, token_type, user_id, client_id, scopes, expires_at, token_data)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    token,
-                    token_type,
-                    token_data["user_id"],
-                    token_data["client_id"],
-                    token_data.get("scope", ""),
-                    token_data.get("expires_at", 0),
-                    json.dumps(token_data),
-                ),
-            )
-
-    def _save_token_postgresql(self, token: str, token_type: str, token_data: Dict):
-        """Save token to PostgreSQL database."""
-        with psycopg2.connect(self.postgres_url) as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO oauth_tokens
-                    (token, token_type, user_id, client_id, scopes, expires_at, token_data)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (token) DO UPDATE SET
-                    token_data = EXCLUDED.token_data, expires_at = EXCLUDED.expires_at
-                    """,
-                    (
-                        token,
-                        token_type,
-                        token_data["user_id"],
-                        token_data["client_id"],
-                        token_data.get("scope", ""),
-                        token_data.get("expires_at", 0),
-                        json.dumps(token_data),
-                    ),
-                )
-                conn.commit()
-
-    def _remove_token_from_db(self, token: str):
-        """Remove token from database."""
-        try:
-            if self.use_postgresql:
-                with psycopg2.connect(self.postgres_url) as conn:
-                    with conn.cursor() as cursor:
-                        cursor.execute(
-                            "DELETE FROM oauth_tokens WHERE token = %s", (token,)
-                        )
-                        conn.commit()
-            else:
-                with sqlite3.connect(self.db_path) as conn:
-                    conn.execute("DELETE FROM oauth_tokens WHERE token = ?", (token,))
-        except Exception as e:
-            print(f"Warning: Could not remove token from database: {e}")

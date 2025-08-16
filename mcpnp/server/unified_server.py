@@ -230,7 +230,23 @@ class UnifiedMCPServer:
 
             # Initialize OAuth components if needed
             if self.transport == "oauth" and OAuthServer is not None:
-                self.oauth = OAuthServer()
+                # Create appropriate datastore based on configuration
+                from ..auth.datastore import SQLiteOAuthDatastore, PostgreSQLOAuthDatastore
+                
+                backend = os.getenv("PANTRY_BACKEND", "sqlite").lower()
+                if backend == "postgresql":
+                    db_url = os.getenv("PANTRY_DATABASE_URL")
+                    if not db_url:
+                        raise ValueError("PANTRY_DATABASE_URL must be set for PostgreSQL backend")
+                    datastore = PostgreSQLOAuthDatastore(db_url)
+                else:
+                    db_path = os.getenv("PANTRY_DB_PATH", "oauth.db")
+                    datastore = SQLiteOAuthDatastore(db_path)
+                
+                # Get public URL for OAuth server
+                public_url = os.getenv("MCP_PUBLIC_URL", f"http://{self.host}:{self.port}")
+                
+                self.oauth = OAuthServer(datastore, public_url)
                 self.oauth_handler = OAuthFlowHandler(self.oauth)
                 # Set up security for OAuth mode
                 self.security = HTTPBearer()

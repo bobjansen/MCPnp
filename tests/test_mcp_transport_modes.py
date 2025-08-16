@@ -433,7 +433,9 @@ class TestMCPTransportModes:
             result = server.tool_router.call_tool("nonexistent_tool", {}, mock_manager)
 
             assert result["status"] == "error"
-            assert "unknown tool" in result["message"].lower()  # Our router uses lowercase
+            assert (
+                "unknown tool" in result["message"].lower()
+            )  # Our router uses lowercase
 
             # Also test authentication-dependent tool without auth
             result_no_auth = server.tool_router.call_tool("get_user_profile", {}, None)
@@ -496,7 +498,9 @@ class TestMCPTransportIntegration:
             test_item = f"test_item_{transport}_{unique_id}"
 
             # Add item
-            result = server.tool_router.call_tool("add_item", {"name": test_item, "quantity": 5}, mock_manager)
+            result = server.tool_router.call_tool(
+                "add_item", {"name": test_item, "quantity": 5}, mock_manager
+            )
             assert result["status"] == "success"
 
             # List items
@@ -505,7 +509,9 @@ class TestMCPTransportIntegration:
             assert test_item in result["items"]
 
             # Test counter functionality
-            result = server.tool_router.call_tool("increment_counter", {"amount": 10}, mock_manager)
+            result = server.tool_router.call_tool(
+                "increment_counter", {"amount": 10}, mock_manager
+            )
             assert result["status"] == "success"
 
             result = server.tool_router.call_tool("get_counter", {}, mock_manager)
@@ -555,7 +561,11 @@ class TestMCPTransportIntegration:
                     args = {"data_type": "personal"}
 
                 # Use mock_manager for auth-dependent tools, None for public tools
-                manager = mock_manager if tool_name in ["get_user_profile", "get_protected_data"] else None
+                manager = (
+                    mock_manager
+                    if tool_name in ["get_user_profile", "get_protected_data"]
+                    else None
+                )
 
                 result = server.tool_router.call_tool(tool_name, args, manager)
                 assert (

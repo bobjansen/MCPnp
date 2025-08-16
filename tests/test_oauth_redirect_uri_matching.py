@@ -6,7 +6,7 @@ import sqlite3
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 
@@ -16,12 +16,15 @@ from mcpnp.auth.oauth_server import OAuthServer
 @contextmanager
 def setup_server(allowed_uris):
     """Create OAuthServer with temporary database populated with allowed URIs."""
-    with (
-        patch.object(OAuthServer, "_load_tokens_from_db"),
-    ):
-        server = OAuthServer()
-        client_id = "test_client"
-        yield server, client_id
+    # Create a mock datastore that returns the allowed URIs
+    mock_datastore = MagicMock()
+    mock_datastore.get_client_redirect_uris.return_value = allowed_uris
+    mock_datastore.load_valid_tokens.return_value = ({}, {})
+
+    server = OAuthServer(mock_datastore)
+    client_id = "test_client"
+    yield server, client_id
+
 
 def test_query_param_wildcard():
     allowed = ["https://example.com/callback?param=*"]

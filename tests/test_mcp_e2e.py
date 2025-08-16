@@ -170,9 +170,7 @@ except Exception as e:
         assert len(available_tools) > 0
 
         # Test tool call flow
-        tool_call_result = server.tool_router.call_tool(
-            "ping", {}, None
-        )
+        tool_call_result = server.tool_router.call_tool("ping", {}, None)
         assert tool_call_result["status"] == "success"
         assert tool_call_result["message"] == "pong"
 
@@ -218,7 +216,9 @@ except Exception as e:
         assert "unknown tool" in result["message"].lower()
 
         # Test simulated error
-        error_result = server.tool_router.call_tool("simulate_error", {"error_type": "ValueError"}, None)
+        error_result = server.tool_router.call_tool(
+            "simulate_error", {"error_type": "ValueError"}, None
+        )
         assert error_result["status"] == "error"
         assert "tool execution failed" in error_result["message"].lower()
 
@@ -281,10 +281,14 @@ except Exception as e:
         server1 = UnifiedMCPServer(tool_router=tool_router1)
 
         # Add some test data
-        result1 = server1.tool_router.call_tool("add_item", {"name": "test_item", "quantity": 5}, None)
+        result1 = server1.tool_router.call_tool(
+            "add_item", {"name": "test_item", "quantity": 5}, None
+        )
         assert result1["status"] == "success"
 
-        result2 = server1.tool_router.call_tool("increment_counter", {"amount": 10}, None)
+        result2 = server1.tool_router.call_tool(
+            "increment_counter", {"amount": 10}, None
+        )
         assert result2["status"] == "success"
 
         # Check data exists
@@ -298,7 +302,9 @@ except Exception as e:
         assert counter_result["counter"] == 10
 
         # Test data consistency within same router instance
-        result3 = server1.tool_router.call_tool("add_item", {"name": "test_item", "quantity": 3}, None)
+        result3 = server1.tool_router.call_tool(
+            "add_item", {"name": "test_item", "quantity": 3}, None
+        )
         assert result3["status"] == "success"
 
         items_result2 = server1.tool_router.call_tool("list_items", {}, None)
