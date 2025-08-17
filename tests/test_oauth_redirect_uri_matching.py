@@ -1,14 +1,8 @@
 #!/usr/bin/env python3
 """Tests for wildcard redirect URI matching in OAuthServer."""
 
-import json
-import sqlite3
-import tempfile
 from contextlib import contextmanager
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-
-import pytest
+from unittest.mock import MagicMock
 
 from mcpnp.auth.oauth_server import OAuthServer
 
@@ -27,6 +21,11 @@ def setup_server(allowed_uris):
 
 
 def test_query_param_wildcard():
+    """Test wildcard matching in query parameters.
+
+    Verifies that wildcard (*) in query parameter values can match
+    arbitrary content while maintaining the rest of the URI structure.
+    """
     allowed = ["https://example.com/callback?param=*"]
     with setup_server(allowed) as (server, client_id):
         assert server.validate_redirect_uri(
@@ -35,6 +34,11 @@ def test_query_param_wildcard():
 
 
 def test_filename_extension_wildcard():
+    """Test wildcard matching in filename patterns.
+
+    Verifies that wildcard (*) can match arbitrary content within
+    filenames while preserving the file extension.
+    """
     allowed = ["https://example.com/file-*.txt"]
     with setup_server(allowed) as (server, client_id):
         assert server.validate_redirect_uri(
@@ -43,6 +47,11 @@ def test_filename_extension_wildcard():
 
 
 def test_plus_character_wildcard():
+    """Test wildcard matching with plus characters in URI.
+
+    Verifies that wildcard patterns work correctly when the URI
+    contains special characters like '+' that need proper escaping.
+    """
     allowed = ["https://example.com/query+value*"]
     with setup_server(allowed) as (server, client_id):
         assert server.validate_redirect_uri(
@@ -51,6 +60,13 @@ def test_plus_character_wildcard():
 
 
 def test_fullmatch_enforced():
+    """Test that wildcard matching uses full pattern matching.
+
+    Verifies that wildcard patterns must match the entire URI
+    (fullmatch behavior) rather than just finding a substring match.
+    This prevents security issues where overly permissive patterns
+    could match unintended URIs.
+    """
     allowed = ["https://example.com/callback*end"]
     with setup_server(allowed) as (server, client_id):
         assert not server.validate_redirect_uri(
