@@ -1,11 +1,12 @@
 """
 OAuth template rendering with external HTML/CSS files.
-Cleaner separation of concerns.
 """
 
 import os
 from urllib.parse import urlencode
 from string import Template
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 
 def _build_oauth_params(
@@ -33,9 +34,8 @@ def _build_oauth_params(
 def _load_template(template_name: str) -> str:
     """Load template file from templates directory."""
     # Go up to project root, then to templates/oauth/
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     template_path = os.path.join(
-        project_root, "templates", "oauth", f"{template_name}.html"
+        PROJECT_ROOT, "templates", "oauth", f"{template_name}.html"
     )
     try:
         with open(template_path, "r", encoding="utf-8") as f:
