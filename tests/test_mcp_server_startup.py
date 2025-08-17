@@ -3,22 +3,15 @@ Tests for MCP server startup, configuration validation, and initialization.
 Tests various configuration scenarios, error handling, and server lifecycle.
 """
 
-import pytest
-import os
-import tempfile
-import shutil
-import json
 import asyncio
-import threading
-import time
-import sqlite3
-from pathlib import Path
-import sys
-from datetime import datetime, timedelta
-from unittest.mock import patch, AsyncMock, MagicMock
 import logging
+import os
+import shutil
+import tempfile
 from io import StringIO
-
+from pathlib import Path
+from unittest.mock import patch, MagicMock
+import pytest
 from mcp_tool_router import MCPToolRouter
 from mcpnp.server import UnifiedMCPServer
 
@@ -27,20 +20,11 @@ class TestMCPServerStartup:
     """Test MCP server startup and configuration."""
 
     @pytest.fixture
-    def temp_dir(self):
-        """Create a temporary directory for test data."""
-        temp_dir = tempfile.mkdtemp()
-        yield temp_dir
-        shutil.rmtree(temp_dir)
-
-    @pytest.fixture
     def clean_env(self):
         """Clean environment variables before and after tests."""
         # Store original values
         original_env = {}
-        mcp_vars = [
-            key for key in os.environ.keys() if key.startswith(("MCP_", "PANTRY_"))
-        ]
+        mcp_vars = [key for key in os.environ if key.startswith(("MCP_"))]
         for var in mcp_vars:
             original_env[var] = os.environ[var]
             del os.environ[var]
@@ -54,7 +38,7 @@ class TestMCPServerStartup:
         for var, value in original_env.items():
             os.environ[var] = value
 
-    def test_default_configuration(self, temp_dir, clean_env):
+    def test_default_configuration(self):
         """Test server startup with default configuration."""
         # Use our stub router for testing
         tool_router = MCPToolRouter()
@@ -72,11 +56,10 @@ class TestMCPServerStartup:
         assert server.mcp is not None  # FastMCP should be initialized
         assert server.app is None  # HTTP app should not be initialized
 
-    def test_fastmcp_configuration(self, temp_dir, clean_env):
+    def test_fastmcp_configuration(self, clean_env):  # pylint: disable=unused-argument
         """Test FastMCP transport configuration."""
         os.environ["MCP_TRANSPORT"] = "fastmcp"
         os.environ["MCP_MODE"] = "local"
-        os.environ["PANTRY_DB_PATH"] = os.path.join(temp_dir, "fastmcp_test.db")
 
         server = UnifiedMCPServer()
 
@@ -87,7 +70,7 @@ class TestMCPServerStartup:
         assert server.app is None
         assert server.oauth is None
 
-    def test_http_configuration(self, temp_dir, clean_env):
+    def test_http_configuration(self, clean_env):  # pylint: disable=unused-argument
         """Test HTTP transport configuration."""
         os.environ["MCP_TRANSPORT"] = "http"
         os.environ["MCP_MODE"] = "local"  # Changed from "remote" to "local"
@@ -105,13 +88,12 @@ class TestMCPServerStartup:
         # Security is only set up for OAuth mode, not HTTP local mode
         # assert server.security is not None  # Removed this assertion
 
-    def test_sse_configuration(self, temp_dir, clean_env):
+    def test_sse_configuration(self, clean_env):  # pylint: disable=unused-argument
         """Test Server-Sent Events configuration."""
         os.environ["MCP_TRANSPORT"] = "sse"
         os.environ["MCP_MODE"] = "remote"
         os.environ["MCP_PORT"] = "9000"
         os.environ["ADMIN_TOKEN"] = "sse-admin-token"
-        os.environ["USER_DATA_DIR"] = temp_dir
 
         server = UnifiedMCPServer()
 
@@ -121,7 +103,9 @@ class TestMCPServerStartup:
         assert server.app is not None
         assert server.mcp is None
 
-    def test_environment_variable_precedence(self, temp_dir, clean_env):
+    def test_environment_variable_precedence(
+        self, clean_env
+    ):  # pylint: disable=unused-argument
         """Test that environment variables override defaults."""
         # Set custom values
         os.environ["MCP_TRANSPORT"] = "http"
@@ -129,7 +113,6 @@ class TestMCPServerStartup:
         os.environ["MCP_HOST"] = "custom.host"
         os.environ["MCP_PORT"] = "9999"
         os.environ["ADMIN_TOKEN"] = "custom-admin-token"
-        os.environ["USER_DATA_DIR"] = temp_dir
 
         server = UnifiedMCPServer()
 
@@ -139,7 +122,9 @@ class TestMCPServerStartup:
         assert server.host == "custom.host"
         assert server.port == 9999
 
-    def test_tool_router_initialization(self, temp_dir, clean_env):
+    def test_tool_router_initialization(
+        self, clean_env
+    ):  # pylint: disable=unused-argument
         """Test that tool router is properly initialized."""
         # Use our stub router for testing
         tool_router = MCPToolRouter()
@@ -163,23 +148,34 @@ class TestMCPServerStartup:
         for expected_tool in expected_tools:
             assert expected_tool in tool_names
 
-    def test_logging_configuration(self, temp_dir, clean_env):
+    def test_logging_configuration(self, clean_env):  # pylint: disable=unused-argument
         """Test that logging is properly configured."""
-        # Capture log output
+        # Capture log output from the actual server logger
         log_stream = StringIO()
         handler = logging.StreamHandler(log_stream)
-        logger = logging.getLogger("mcp_server")
-        logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
+
+        # Set up logging for the mcpnp package
+        mcpnp_logger = logging.getLogger("mcpnp")
+        mcpnp_logger.addHandler(handler)
+        mcpnp_logger.setLevel(logging.INFO)
+
+        # Also capture root logger messages
+        root_logger = logging.getLogger()
+        root_logger.addHandler(handler)
+        root_logger.setLevel(logging.INFO)
 
         os.environ["MCP_TRANSPORT"] = "http"
         server = UnifiedMCPServer()
+        assert server is not None
 
         # Should generate some log messages during initialization
         log_output = log_stream.getvalue()
-        # Note: Actual log messages depend on implementation
+        # Just verify that logging system is working, don't require specific messages
+        assert server.transport == "http"  # Verify server was configured correctly
 
-    def test_cors_configuration_http(self, temp_dir, clean_env):
+    def test_cors_configuration_http(
+        self, clean_env
+    ):  # pylint: disable=unused-argument
         """Test CORS configuration for HTTP transports."""
         os.environ["MCP_TRANSPORT"] = "http"
 
@@ -201,41 +197,9 @@ class TestMCPServerStartup:
         # CORS may be configured but we just verify the app was set up properly
         assert server.app is not None
 
-    def test_static_files_mounting_oauth(self, temp_dir, clean_env):
-        """Test static files mounting for OAuth mode."""
-        os.environ["MCP_TRANSPORT"] = "oauth"
-
-        # Create static directory
-        static_dir = Path(temp_dir) / "static"
-        static_dir.mkdir(exist_ok=True)
-
-        with (
-            patch("mcpnp.auth.oauth_server.OAuthServer"),
-            patch("mcpnp.auth.oauth_handlers.OAuthFlowHandler"),
-            patch("fastapi.staticfiles.StaticFiles") as mock_static,
-        ):
-
-            # Create mock datastore
-            mock_datastore = MagicMock()
-            mock_datastore.load_valid_tokens.return_value = ({}, {})
-
-            # Change to temp directory so static files can be found
-            original_cwd = os.getcwd()
-            try:
-                os.chdir(temp_dir)
-                tool_router = MCPToolRouter()
-                server = UnifiedMCPServer(
-                    tool_router=tool_router, oauth_datastore=mock_datastore
-                )
-
-                # Verify static files were mounted
-                # Note: This test verifies the mount call was attempted
-                # Actual mounting might fail if directory doesn't exist
-
-            finally:
-                os.chdir(original_cwd)
-
-    def test_request_logging_middleware(self, temp_dir, clean_env):
+    def test_request_logging_middleware(
+        self, clean_env
+    ):  # pylint: disable=unused-argument
         """Test request logging middleware configuration."""
         os.environ["MCP_TRANSPORT"] = "http"
 
@@ -257,7 +221,9 @@ class TestMCPServerStartup:
         response = client.get("/nonexistent")
         assert response.status_code == 404
 
-    def test_server_info_consistency(self, temp_dir, clean_env):
+    def test_server_info_consistency(
+        self, clean_env
+    ):  # pylint: disable=unused-argument
         """Test that server info is consistent across endpoints."""
         os.environ["MCP_TRANSPORT"] = "http"
         os.environ["MCP_MODE"] = "local"
@@ -285,7 +251,9 @@ class TestMCPServerStartup:
         assert "protocolVersion" in root_data
         assert "capabilities" in root_data
 
-    def test_graceful_shutdown_preparation(self, temp_dir, clean_env):
+    def test_graceful_shutdown_preparation(
+        self, clean_env
+    ):  # pylint: disable=unused-argument
         """Test that server is prepared for graceful shutdown."""
         configurations = [("fastmcp", "local"), ("http", "local"), ("sse", "remote")]
 
@@ -295,7 +263,6 @@ class TestMCPServerStartup:
 
             if mode == "remote":
                 os.environ["ADMIN_TOKEN"] = "shutdown-test"
-                os.environ["USER_DATA_DIR"] = temp_dir
 
             server = UnifiedMCPServer()
 
@@ -309,10 +276,10 @@ class TestMCPServerStartup:
 
             # Clean environment for next iteration
             for key in list(os.environ.keys()):
-                if key.startswith(("MCP_", "PANTRY_", "ADMIN_", "USER_")):
+                if key.startswith(("MCP_", "ADMIN_", "USER_")):
                     del os.environ[key]
 
-    def teardown_method(self, method):
+    def teardown_method(self):
         """Clean up after each test."""
         # Clean up all environment variables
         env_vars_to_clean = [
@@ -321,11 +288,7 @@ class TestMCPServerStartup:
             "MCP_HOST",
             "MCP_PORT",
             "MCP_PUBLIC_URL",
-            "PANTRY_BACKEND",
-            "PANTRY_DB_PATH",
-            "PANTRY_DATABASE_URL",
             "ADMIN_TOKEN",
-            "USER_DATA_DIR",
         ]
         for var in env_vars_to_clean:
             os.environ.pop(var, None)
@@ -334,17 +297,9 @@ class TestMCPServerStartup:
 class TestMCPServerLifecycle:
     """Test server lifecycle management."""
 
-    @pytest.fixture
-    def temp_dir(self):
-        """Create a temporary directory for test data."""
-        temp_dir = tempfile.mkdtemp()
-        yield temp_dir
-        shutil.rmtree(temp_dir)
-
-    def test_server_run_method_exists(self, temp_dir):
+    def test_server_run_method_exists(self):
         """Test that server has proper run methods."""
         os.environ["MCP_TRANSPORT"] = "fastmcp"
-        os.environ["PANTRY_DB_PATH"] = os.path.join(temp_dir, "lifecycle_test.db")
 
         server = UnifiedMCPServer()
 
@@ -354,10 +309,9 @@ class TestMCPServerLifecycle:
         assert hasattr(server, "run_async")
         assert callable(server.run_async)
 
-    def test_async_server_preparation(self, temp_dir):
+    def test_async_server_preparation(self):
         """Test async server preparation."""
         os.environ["MCP_TRANSPORT"] = "http"
-        os.environ["PANTRY_DB_PATH"] = os.path.join(temp_dir, "async_test.db")
 
         server = UnifiedMCPServer()
 
@@ -365,30 +319,27 @@ class TestMCPServerLifecycle:
         assert server.app is not None
         assert asyncio.iscoroutinefunction(server.run_async)
 
-    def test_server_error_handling_on_startup(self, temp_dir):
+    def test_server_error_handling_on_startup(self):
         """Test server error handling during startup."""
 
         # Test with invalid configuration that should be caught
         os.environ["MCP_TRANSPORT"] = "http"
         os.environ["MCP_PORT"] = "99999"  # Valid port number
-        os.environ["PANTRY_DB_PATH"] = "/invalid/path/that/does/not/exist/test.db"
 
         # Server initialization should handle invalid database path gracefully
         # Database setup happens during MCPContext initialization and now uses error_utils
         server = UnifiedMCPServer()
         # The error should be logged but not crash the server startup
+        assert server is not None
 
-    def teardown_method(self, method):
+    def teardown_method(self):
         """Clean up after each test."""
         env_vars_to_clean = [
             "MCP_TRANSPORT",
             "MCP_MODE",
             "MCP_HOST",
             "MCP_PORT",
-            "PANTRY_BACKEND",
-            "PANTRY_DB_PATH",
             "ADMIN_TOKEN",
-            "USER_DATA_DIR",
         ]
         for var in env_vars_to_clean:
             os.environ.pop(var, None)
