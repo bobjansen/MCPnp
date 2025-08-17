@@ -239,8 +239,7 @@ class UnifiedMCPServer:
                 # Use provided datastore or create a default one
                 if self.oauth_datastore is None:
                     raise ValueError("OAuth datastore required with OAuth transport")
-                else:
-                    datastore = self.oauth_datastore
+                datastore = self.oauth_datastore
 
                 # Get public URL for OAuth server
                 public_url = os.getenv(
@@ -289,9 +288,6 @@ class UnifiedMCPServer:
         """Call a tool through the router with proper authentication."""
         if not self.tool_router:
             return {"status": "error", "message": "No tool router configured"}
-
-        # Extract token from arguments if present
-        token = arguments.get("token")
 
         # Handle special admin-only tools
         if tool_name == "create_user":
@@ -547,7 +543,6 @@ class UnifiedMCPServer:
                     except (
                         ConnectionError,
                         BrokenPipeError,
-                        asyncio.CancelledError,
                     ) as e:
                         log_error_with_traceback(e, "Server-Sent Events")
                         yield f'data: {{"type": "error", "message": "{str(e)}"}}\n\n'

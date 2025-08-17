@@ -191,8 +191,14 @@ def _authenticated_tool(self, arguments: Dict[str, Any], manager=None) -> Dict[s
 
 **Required Checks (all must pass):**
 - ✅ **Black formatting**: Consistent code style
-- ✅ **Pylint analysis**: Code quality > 8.0/10
+- ✅ **Pylint analysis**: Code quality > 9.5/10 (configured for MCP servers)
 - ✅ **Pytest execution**: All tests pass (39/39)
+
+**Pylint Configuration:**
+- Custom `.pylintrc` designed for MCP server development
+- Allows reasonable complexity (max-args=10, max-attributes=15)
+- Disables warnings common in protocol implementations
+- Focus on real code quality issues, not architectural constraints
 
 **Performance Targets:**
 - Test suite: < 3 seconds

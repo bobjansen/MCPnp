@@ -40,10 +40,10 @@ def _load_template(template_name: str) -> str:
     try:
         with open(template_path, "r", encoding="utf-8") as f:
             return f.read()
-    except FileNotFoundError:
+    except FileNotFoundError as exc:
         raise FileNotFoundError(
             f"Template {template_name}.html not found at {template_path}"
-        )
+        ) from exc
 
 
 def generate_login_form(

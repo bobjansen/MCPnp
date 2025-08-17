@@ -4,12 +4,12 @@ Code Quality Check Script for MCPnp
 
 This script runs comprehensive code quality checks including:
 - Black formatting validation
-- Pylint code analysis  
+- Pylint code analysis
 - Pytest test execution
 
 Usage:
     python check.py [--fix] [--quick]
-    
+
 Options:
     --fix    Apply black formatting fixes automatically
     --quick  Run quick checks (skip some slower tests)
@@ -31,7 +31,11 @@ def run_command(cmd, description):
 
     try:
         result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=300  # 5 minute timeout
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=30,  # 5 minute timeout
+            check=False,
         )
 
         duration = time.time() - start_time
@@ -41,16 +45,15 @@ def run_command(cmd, description):
             if result.stdout.strip():
                 print(f"\nOutput:\n{result.stdout}")
             return True
-        else:
-            print(f"❌ FAILED ({duration:.2f}s)")
-            if result.stdout.strip():
-                print(f"\nSTDOUT:\n{result.stdout}")
-            if result.stderr.strip():
-                print(f"\nSTDERR:\n{result.stderr}")
-            return False
+        print(f"❌ FAILED ({duration:.2f}s)")
+        if result.stdout.strip():
+            print(f"\nSTDOUT:\n{result.stdout}")
+        if result.stderr.strip():
+            print(f"\nSTDERR:\n{result.stderr}")
+        return False
 
     except subprocess.TimeoutExpired:
-        print(f"⏰ TIMEOUT after 5 minutes")
+        print("⏰ TIMEOUT after 5 minutes")
         return False
     except subprocess.CalledProcessError as e:
         print(f"💥 ERROR: {e}")
@@ -86,12 +89,12 @@ def main():
     )
 
     # 2. Pylint Analysis
-    pylint_targets = ["mcpnp/", "tests/", "*.py"]
+    pylint_targets = ["mcpnp/", "tests/", "run_mcp.py", "check.py"]
     if quick_mode:
         pylint_targets = ["mcpnp/"]  # Skip tests in quick mode
 
     results["pylint"] = run_command(
-        ["uv", "run", "pylint"] + pylint_targets + ["--disable=import-error"],
+        ["uv", "run", "pylint"] + pylint_targets + ["--rcfile=.pylintrc"],
         "Pylint Code Analysis" + (" (Quick)" if quick_mode else ""),
     )
 
@@ -125,9 +128,8 @@ def main():
     if passed == total:
         print("\n🎉 ALL CHECKS PASSED! Code quality is excellent.")
         return 0
-    else:
-        print(f"\n⚠️  {total - passed} checks failed. Please review and fix issues.")
-        return 1
+    print(f"\n⚠️  {total - passed} checks failed. Please review and fix issues.")
+    return 1
 
 
 if __name__ == "__main__":
