@@ -124,7 +124,8 @@ class OAuthServer:
         try:
             self.create_user(username, password, email)
             return True
-        except Exception:
+        except (ValueError, TypeError) as e:
+            logger.warning("User registration failed: %s", e)
             return False
 
     def authenticate_user(self, username: str, password: str) -> Optional[str]:
@@ -152,7 +153,7 @@ class OAuthServer:
             )
             logger.debug("Existing client registered successfully")
             return True
-        except Exception as e:
+        except (ValueError, TypeError, KeyError) as e:
             logger.error("Failed to register existing client: %s", e)
             return False
 
@@ -379,5 +380,5 @@ class OAuthServer:
             access_tokens, refresh_tokens = self.datastore.load_valid_tokens()
             self.access_tokens.update(access_tokens)
             self.refresh_tokens.update(refresh_tokens)
-        except Exception as e:
+        except (OSError, IOError, ValueError) as e:
             logger.warning("Could not load tokens from database: %s", e)

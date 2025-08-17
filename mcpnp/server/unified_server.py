@@ -110,7 +110,7 @@ def log_error_with_traceback(error: Exception, context: str = ""):
         error_msg = f"Error in {context}: {str(error)}\n\nFull traceback:\n{tb_str}"
         logger.error(error_msg)
         logger.info("Error details written to: %s", ERROR_LOG_PATH)
-    except Exception as log_error:
+    except (OSError, IOError, PermissionError) as log_error:
         # Fallback if logging itself fails
         print(f"Failed to log error: {log_error}", file=sys.stderr)
         print(f"Original error: {error}", file=sys.stderr)
@@ -348,7 +348,7 @@ class UnifiedMCPServer:
                     name=tool_name, description=tool.get("description", "")
                 )
                 tool_decorator(tool_func)
-            except Exception as e:
+            except (AttributeError, TypeError, ValueError) as e:
                 # If tool registration fails, skip this tool
                 logger.warning("Failed to register tool %s: %s", tool_name, e)
 
@@ -517,7 +517,7 @@ class UnifiedMCPServer:
                     },
                 }
 
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError) as e:
                 log_error_with_traceback(e, "MCP request handling")
                 return {
                     "jsonrpc": "2.0",
@@ -544,7 +544,7 @@ class UnifiedMCPServer:
                     except asyncio.CancelledError:
                         logger.info("SSE connection cancelled")
                         return
-                    except Exception as e:
+                    except (ConnectionError, BrokenPipeError, asyncio.CancelledError) as e:
                         log_error_with_traceback(e, "Server-Sent Events")
                         yield f'data: {{"type": "error", "message": "{str(e)}"}}\n\n'
                         return
@@ -584,7 +584,7 @@ class UnifiedMCPServer:
                 client_data = await request.json()
                 result = self.oauth.register_client(client_data)
                 return JSONResponse(content=result, status_code=201)
-            except Exception as e:
+            except (ValueError, TypeError, KeyError) as e:
                 log_error_with_traceback(e, "OAuth client registration")
                 return JSONResponse(
                     content={
@@ -623,7 +623,7 @@ class UnifiedMCPServer:
                 )
                 return HTMLResponse(content=login_form_html)
 
-            except Exception as e:
+            except (ValueError, TypeError, KeyError) as e:
                 log_error_with_traceback(e, "OAuth authorization")
                 # pylint: disable=line-too-long
                 return HTMLResponse(
@@ -661,7 +661,7 @@ class UnifiedMCPServer:
                     redirect_uri, auth_code, state
                 )
 
-            except Exception as e:
+            except (ValueError, TypeError, KeyError) as e:
                 log_error_with_traceback(e, "OAuth authorization handling")
                 return self.oauth_handler.create_error_redirect(
                     redirect_uri, "access_denied", str(e), state
@@ -689,7 +689,7 @@ class UnifiedMCPServer:
                     return tokens
                 raise ValueError(f"Unsupported grant_type: {grant_type}")
 
-            except Exception as e:
+            except (ValueError, TypeError, KeyError) as e:
                 log_error_with_traceback(e, "OAuth token exchange")
                 return JSONResponse(
                     content={"error": "invalid_request", "error_description": str(e)},
@@ -723,7 +723,7 @@ class UnifiedMCPServer:
                     status_code=400,
                 )
 
-            except Exception as e:
+            except (ValueError, TypeError, KeyError) as e:
                 log_error_with_traceback(e, "OAuth user registration")
                 return HTMLResponse(
                     content=generate_error_page("Registration failed"), status_code=500
@@ -754,6 +754,6 @@ class UnifiedMCPServer:
                 asyncio.run(self.run_async())
         except KeyboardInterrupt:
             logger.info("Server shutdown requested")
-        except Exception as e:
+        except (OSError, RuntimeError) as e:
             log_error_with_traceback(e, "Server startup/runtime")
             sys.exit(1)
