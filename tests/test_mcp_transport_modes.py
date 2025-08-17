@@ -3,24 +3,15 @@ End-to-End tests for different MCP transport modes.
 Tests FastMCP (stdio), HTTP REST, Server-Sent Events, and OAuth 2.1 transports.
 """
 
-import pytest
 import os
-import tempfile
-import shutil
-import json
-import asyncio
 import threading
 import time
-import requests
 from pathlib import Path
-import sys
-from datetime import datetime, timedelta
-from unittest.mock import patch, AsyncMock, MagicMock
-from urllib.parse import parse_qs, urlparse
-import subprocess
-import signal
-
+from unittest.mock import patch, MagicMock
+from fastapi.testclient import TestClient
+import pytest
 from mcpnp.server import UnifiedMCPServer
+from mcp_tool_router import MockUserManager
 from mcp_tool_router import MCPToolRouter
 
 # Project root for subprocess calls
@@ -31,21 +22,12 @@ class TestMCPTransportModes:
     """Test different MCP transport modes."""
 
     @pytest.fixture
-    def temp_dir(self):
-        """Create a temporary directory for test data."""
-        temp_dir = tempfile.mkdtemp()
-        yield temp_dir
-        shutil.rmtree(temp_dir)
-
-    @pytest.fixture
-    def base_env_setup(self, temp_dir):
+    def base_env_setup(self):
         """Setup base environment variables."""
-        os.environ["PANTRY_BACKEND"] = "sqlite"
-        os.environ["PANTRY_DB_PATH"] = os.path.join(temp_dir, "transport_test.db")
         os.environ["MCP_HOST"] = "localhost"
         os.environ["MCP_PORT"] = "18000"  # Use different port for testing
 
-    def test_fastmcp_stdio_transport(self, temp_dir, base_env_setup):
+    def test_fastmcp_stdio_transport(self):
         """Test FastMCP stdio transport mode."""
         os.environ["MCP_TRANSPORT"] = "fastmcp"
         os.environ["MCP_MODE"] = "local"
@@ -69,7 +51,7 @@ class TestMCPTransportModes:
         assert result["status"] == "success"
         assert result["message"] == "pong"
 
-    def test_http_rest_transport_setup(self, temp_dir, base_env_setup):
+    def test_http_rest_transport_setup(self):
         """Test HTTP REST transport setup."""
         os.environ["MCP_TRANSPORT"] = "http"
         os.environ["MCP_MODE"] = "local"
@@ -88,8 +70,9 @@ class TestMCPTransportModes:
         # Should have basic routes
         assert any("/health" in route for route in routes)
         assert len(routes) > 2  # Should have multiple routes
+        assert sorted(routes) == sorted(expected_routes)
 
-    def test_http_server_endpoints_mock(self, temp_dir, base_env_setup):
+    def test_http_server_endpoints_mock(self):
         """Test HTTP server endpoints with mocked client."""
         os.environ["MCP_TRANSPORT"] = "http"
         os.environ["MCP_MODE"] = "local"
@@ -98,8 +81,6 @@ class TestMCPTransportModes:
         server = UnifiedMCPServer(tool_router=tool_router)
 
         # Mock HTTP client for testing endpoints
-        from fastapi.testclient import TestClient
-
         client = TestClient(server.app)
 
         # Test health endpoint
@@ -148,7 +129,7 @@ class TestMCPTransportModes:
         assert "result" in data
         assert "content" in data["result"]
 
-    def test_sse_transport_setup(self, temp_dir, base_env_setup):
+    def test_sse_transport_setup(self):
         """Test Server-Sent Events transport setup."""
         os.environ["MCP_TRANSPORT"] = "sse"
         os.environ["MCP_MODE"] = "remote"
@@ -164,17 +145,12 @@ class TestMCPTransportModes:
         routes = [route.path for route in server.app.routes]
         assert any("/events" in route for route in routes)
 
-    def test_sse_events_endpoint_mock(self, temp_dir, base_env_setup):
+    def test_sse_events_endpoint_mock(self):
         """Test SSE events endpoint setup and basic response."""
         os.environ["MCP_TRANSPORT"] = "sse"
         os.environ["MCP_MODE"] = "local"
 
         server = UnifiedMCPServer()
-
-        from fastapi.testclient import TestClient
-        import threading
-        import time
-
         client = TestClient(server.app)
 
         # Test the endpoint exists and returns correct headers
@@ -200,6 +176,7 @@ class TestMCPTransportModes:
             except Exception:
                 # If reading content fails, that's okay - we verified the endpoint exists
                 pass
+            assert content_found
 
             # Test passes if we got the right status and headers
             # Content verification is optional due to streaming complexity
@@ -212,7 +189,7 @@ class TestMCPTransportModes:
             routes = [route.path for route in server.app.routes]
             assert any("/events" in route for route in routes)
 
-    def test_oauth_transport_setup(self, temp_dir, base_env_setup):
+    def test_oauth_transport_setup(self):
         """Test OAuth 2.1 transport setup."""
         os.environ["MCP_TRANSPORT"] = "oauth"
         os.environ["MCP_MODE"] = "multiuser"
@@ -259,7 +236,7 @@ class TestMCPTransportModes:
             for oauth_route in oauth_routes:
                 assert any(oauth_route in route for route in routes)
 
-    def test_oauth_endpoints_mock(self, temp_dir, base_env_setup):
+    def test_oauth_endpoints_mock(self):
         """Test OAuth endpoints with mocked components."""
         os.environ["MCP_TRANSPORT"] = "oauth"
         os.environ["MCP_MODE"] = "multiuser"
@@ -322,38 +299,27 @@ class TestMCPTransportModes:
             data = response.json()
             assert "client_id" in data
 
-    def test_transport_mode_configuration_validation(self, temp_dir):
+    def test_transport_mode_configuration_validation(self):
         """Test that different transport modes configure correctly."""
         # Skip OAuth since components are not available in this environment
         test_configs = [
-            ("fastmcp", "local", "sqlite"),
-            ("http", "local", "sqlite"),
-            ("sse", "local", "sqlite"),
-            # ("oauth", "multiuser", "postgresql"),  # Skipped - OAuth components not available
+            ("fastmcp", "local"),
+            ("http", "local"),
+            ("sse", "local"),
+            ("oauth", "multiuser"),
         ]
 
-        for transport, mode, backend in test_configs:
+        for transport, mode in test_configs:
             # Clean environment
             for key in list(os.environ.keys()):
-                if key.startswith(("MCP_", "PANTRY_")):
+                if key.startswith(("MCP_")):
                     del os.environ[key]
 
             # Set test configuration
             os.environ["MCP_TRANSPORT"] = transport
             os.environ["MCP_MODE"] = mode
-            os.environ["PANTRY_BACKEND"] = backend
             os.environ["MCP_HOST"] = "localhost"
             os.environ["MCP_PORT"] = "18000"
-
-            if backend == "postgresql":
-                os.environ["PANTRY_DATABASE_URL"] = (
-                    "postgresql://test:test@localhost/test"
-                )
-                os.environ["MCP_PUBLIC_URL"] = "http://localhost:18000"
-            else:
-                os.environ["PANTRY_DB_PATH"] = os.path.join(
-                    temp_dir, f"test_{transport}.db"
-                )
 
             # No additional setup needed for local mode
 
@@ -363,7 +329,7 @@ class TestMCPTransportModes:
             assert server.transport == transport
             assert server.auth_mode == mode
 
-    def test_transport_specific_components(self, temp_dir, base_env_setup):
+    def test_transport_specific_components(self):
         """Test that each transport mode has the correct components."""
 
         # Test FastMCP components
@@ -390,9 +356,8 @@ class TestMCPTransportModes:
         assert server_sse.app is not None
         assert server_sse.oauth is None
 
-    def test_authentication_modes_per_transport(self, temp_dir, base_env_setup):
+    def test_authentication_modes_per_transport(self):
         """Test authentication modes work correctly with each transport."""
-        from mcp_tool_router import MockUserManager
 
         # FastMCP + Local (no auth)
         os.environ["MCP_TRANSPORT"] = "fastmcp"
