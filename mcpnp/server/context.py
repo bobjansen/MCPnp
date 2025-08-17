@@ -5,10 +5,12 @@ This module provides a generic context manager that can be configured with any
 data manager factory and database setup function.
 """
 
+import os
 from typing import Optional, Dict, Any, Callable
 from contextvars import ContextVar
 from ..auth.user_manager import UserManager
-import os
+
+LOCAL_DB_PATH = "user.sqlite"
 
 # Context variable to store current user
 current_user: ContextVar[Optional[str]] = ContextVar("current_user", default=None)
@@ -45,7 +47,7 @@ class MCPContext:
         # Initialize local user in local mode
         if self.mode == "local" and self.data_manager_factory:
             local_user = "local_user"
-            db_path = self.user_manager.get_user_db_path(local_user)
+            db_path = LOCAL_DB_PATH
             self.data_managers[local_user] = self.data_manager_factory(
                 connection_string=db_path
             )
@@ -53,14 +55,12 @@ class MCPContext:
             if self.database_setup_func:
                 self.database_setup_func(db_path)
 
-    def authenticate_and_get_data_manager(
-        self, token: Optional[str] = None
-    ) -> tuple[Optional[str], Optional[Any]]:
+    def authenticate_and_get_data_manager(self) -> tuple[Optional[str], Optional[Any]]:
         """Authenticate user and return their data manager instance."""
         if self.mode == "local":
             user_id = "local_user"
             if user_id not in self.data_managers and self.data_manager_factory:
-                db_path = self.user_manager.get_user_db_path(user_id)
+                db_path = LOCAL_DB_PATH
                 self.data_managers[user_id] = self.data_manager_factory(
                     connection_string=db_path
                 )
@@ -78,7 +78,7 @@ class MCPContext:
         """Get the current user from context."""
         return current_user.get()
 
-    def create_user(self, username: str, admin_token: str) -> Dict[str, Any]:
+    def create_user(self) -> Dict[str, Any]:
         """Create a new user (admin only)."""
         # User creation is only supported in multiuser mode through OAuth
         return {

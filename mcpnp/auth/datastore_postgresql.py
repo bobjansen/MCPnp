@@ -7,7 +7,7 @@ import time
 from typing import Dict, List, Optional, Tuple
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 from .datastore import OAuthDatastore
 
 

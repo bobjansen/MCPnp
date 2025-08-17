@@ -5,16 +5,13 @@ Implements OAuth 2.1 with PKCE for secure authentication
 
 import base64
 import hashlib
-import json
 import logging
 import os
 import re
 import secrets
 import time
-from datetime import datetime, timedelta
-from typing import Dict, Optional, Tuple
-from urllib.parse import parse_qs, urlencode
-
+from typing import Dict, Optional
+from werkzeug.security import generate_password_hash
 from .datastore import OAuthDatastore
 
 logger = logging.getLogger(__name__)
@@ -194,7 +191,7 @@ class OAuthServer:
             digest = hashlib.sha256(code_verifier.encode()).digest()
             challenge = base64.urlsafe_b64encode(digest).decode().rstrip("=")
             return challenge == code_challenge
-        elif method == "plain":
+        if method == "plain":
             return code_verifier == code_challenge
         return False
 

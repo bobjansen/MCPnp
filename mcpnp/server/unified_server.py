@@ -242,7 +242,9 @@ class UnifiedMCPServer:
                     datastore = self.oauth_datastore
 
                 # Get public URL for OAuth server
-                public_url = os.getenv("MCP_PUBLIC_URL", f"http://{self.host}:{self.port}")
+                public_url = os.getenv(
+                    "MCP_PUBLIC_URL", f"http://{self.host}:{self.port}"
+                )
 
                 self.oauth = OAuthServer(datastore, public_url)
                 self.oauth_handler = OAuthFlowHandler(self.oauth)
@@ -274,7 +276,9 @@ class UnifiedMCPServer:
         else:
             return self.context.authenticate_and_get_data_manager(token)
 
-    def _get_user_data_manager_oauth(self, user_id: Optional[str]) -> tuple[Optional[str], Optional[Any]]:
+    def _get_user_data_manager_oauth(
+        self, user_id: Optional[str]
+    ) -> tuple[Optional[str], Optional[Any]]:
         """Get user data manager for OAuth mode."""
         if not user_id:
             return None, None
@@ -327,7 +331,6 @@ class UnifiedMCPServer:
 
         # Call the tool through the router
         return self.tool_router.call_tool(tool_name, arguments, data_manager)
-
 
     def _register_fastmcp_tools(self):
         """Register tools for FastMCP transport."""
