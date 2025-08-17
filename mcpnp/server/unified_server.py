@@ -355,7 +355,7 @@ class UnifiedMCPServer:
     def _create_fastmcp_tool_wrapper(self, tool_name: str):
         """Create a FastMCP tool wrapper for a given tool name."""
 
-        def tool_wrapper(*_, **kwargs):
+        def tool_wrapper(*args, **kwargs):
             # Add token handling if needed
             _, data_manager = self.get_user_data_manager()
             if not data_manager:
@@ -633,7 +633,7 @@ class UnifiedMCPServer:
 
         @self.app.post("/authorize")
         async def handle_authorization(
-            _: str = Form(...),
+            response_type: str = Form(...),
             client_id: str = Form(...),
             redirect_uri: str = Form(...),
             scope: str = Form(...),
