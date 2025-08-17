@@ -16,6 +16,8 @@ import pytest
 from mcpnp.server import UnifiedMCPServer
 from mcp_tool_router import MCPToolRouter
 
+from .conftest import cleanup_test_environment
+
 # Project root for subprocess calls
 project_root = Path(__file__).parent.parent.parent
 
@@ -251,16 +253,7 @@ except (ImportError, ValueError, TypeError, RuntimeError) as e:
 
     def teardown_method(self):
         """Clean up after each test."""
-        # Clean up environment variables
-        env_vars = [
-            "MCP_MODE",
-            "ADMIN_TOKEN",
-            "USER_DATA_DIR",
-            "MCP_PORT",
-            "MCP_TRANSPORT",
-        ]
-        for var in env_vars:
-            os.environ.pop(var, None)
+        cleanup_test_environment()
 
 
 class TestMCPProtocolCompliance:

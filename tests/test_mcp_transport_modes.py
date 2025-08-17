@@ -4,15 +4,17 @@ Tests FastMCP (stdio), HTTP REST, Server-Sent Events, and OAuth 2.1 transports.
 """
 
 import os
-import threading
-import time
+import uuid
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 import pytest
+
 from mcpnp.server import UnifiedMCPServer
 from mcp_tool_router import MockUserManager
 from mcp_tool_router import MCPToolRouter
+
+from .conftest import cleanup_test_environment
 
 # Project root for subprocess calls
 project_root = Path(__file__).parent.parent.parent
@@ -65,12 +67,22 @@ class TestMCPTransportModes:
 
         # Check that HTTP routes are registered
         routes = [route.path for route in server.app.routes]
-        expected_routes = ["/health", "/", "/"]  # GET and POST for root
+
+        # FastAPI automatically adds documentation routes, so we check for required routes
+        required_routes = ["/health", "/"]  # Health endpoint and root endpoint
 
         # Should have basic routes
         assert any("/health" in route for route in routes)
-        assert len(routes) > 2  # Should have multiple routes
-        assert sorted(routes) == sorted(expected_routes)
+        assert any("/" == route for route in routes)
+        assert len(routes) >= len(
+            required_routes
+        )  # Should have at least our required routes
+
+        # Check that required routes are present (allow for FastAPI auto-generated routes)
+        for required_route in required_routes:
+            assert (
+                required_route in routes
+            ), f"Required route {required_route} not found in {routes}"
 
     def test_http_server_endpoints_mock(self):
         """Test HTTP server endpoints with mocked client."""
@@ -151,43 +163,29 @@ class TestMCPTransportModes:
         os.environ["MCP_MODE"] = "local"
 
         server = UnifiedMCPServer()
-        client = TestClient(server.app)
 
-        # Test the endpoint exists and returns correct headers
-        # We'll test this synchronously first to avoid TestClient streaming issues
-        try:
-            # Use a simple GET request to test the endpoint exists
-            # Note: This may not work perfectly with streaming, but we can at least test setup
-            response = client.get("/events", stream=True, timeout=1.0)
+        # Test that the SSE endpoint is properly registered
+        # Note: We don't actually call the endpoint because SSE streams are infinite
+        # and would hang the test. Instead, we verify the route exists.
+        assert server.app is not None
+        routes = [route.path for route in server.app.routes]
+        assert any(
+            "/events" in route for route in routes
+        ), "SSE /events endpoint not found"
 
-            # Check response status and headers
-            assert response.status_code == 200
-            assert "text/event-stream" in response.headers.get("content-type", "")
+        # Verify the route has the correct methods and configuration
+        events_routes = [
+            route
+            for route in server.app.routes
+            if hasattr(route, "path") and route.path == "/events"
+        ]
+        assert len(events_routes) > 0, "No /events route found"
 
-            # Try to read just a small amount of content with timeout
-            content_found = False
-            try:
-                # Read raw content with a very small timeout
-                content = response.content  # This should not block indefinitely
-                if content:
-                    content_str = content.decode("utf-8", errors="ignore")
-                    if "connected" in content_str.lower():
-                        content_found = True
-            except Exception:
-                # If reading content fails, that's okay - we verified the endpoint exists
-                pass
-            assert content_found
-
-            # Test passes if we got the right status and headers
-            # Content verification is optional due to streaming complexity
-            assert response.status_code == 200
-
-        except Exception as e:
-            # If the basic request fails completely, skip this specific test
-            # but verify the server setup is correct
-            assert server.app is not None
-            routes = [route.path for route in server.app.routes]
-            assert any("/events" in route for route in routes)
+        # For SSE endpoints, we verify setup without actually streaming
+        # because the endpoint is designed to be an infinite stream
+        events_route = events_routes[0]
+        assert hasattr(events_route, "methods"), "Route should have methods defined"
+        assert "GET" in events_route.methods, "SSE endpoint should support GET"
 
     def test_oauth_transport_setup(self):
         """Test OAuth 2.1 transport setup."""
@@ -269,8 +267,6 @@ class TestMCPTransportModes:
 
             server = UnifiedMCPServer(oauth_datastore=mock_datastore)
 
-            from fastapi.testclient import TestClient
-
             client = TestClient(server.app)
 
             # Test OAuth discovery
@@ -301,12 +297,11 @@ class TestMCPTransportModes:
 
     def test_transport_mode_configuration_validation(self):
         """Test that different transport modes configure correctly."""
-        # Skip OAuth since components are not available in this environment
+        # Test configurations - separate OAuth since it requires special setup
         test_configs = [
             ("fastmcp", "local"),
             ("http", "local"),
             ("sse", "local"),
-            ("oauth", "multiuser"),
         ]
 
         for transport, mode in test_configs:
@@ -321,13 +316,31 @@ class TestMCPTransportModes:
             os.environ["MCP_HOST"] = "localhost"
             os.environ["MCP_PORT"] = "18000"
 
-            # No additional setup needed for local mode
-
-            # All test configs now use local modes, so no OAuth mocking needed
             tool_router = MCPToolRouter()
             server = UnifiedMCPServer(tool_router=tool_router)
             assert server.transport == transport
             assert server.auth_mode == mode
+
+        # Test OAuth separately with required datastore
+        for key in list(os.environ.keys()):
+            if key.startswith(("MCP_")):
+                del os.environ[key]
+
+        os.environ["MCP_TRANSPORT"] = "oauth"
+        os.environ["MCP_MODE"] = "multiuser"
+        os.environ["MCP_HOST"] = "localhost"
+        os.environ["MCP_PORT"] = "18000"
+
+        # Create mock datastore for OAuth transport
+        mock_datastore = MagicMock()
+        mock_datastore.load_valid_tokens.return_value = ({}, {})
+
+        tool_router = MCPToolRouter()
+        server = UnifiedMCPServer(
+            tool_router=tool_router, oauth_datastore=mock_datastore
+        )
+        assert server.transport == "oauth"
+        assert server.auth_mode == "multiuser"
 
     def test_transport_specific_components(self):
         """Test that each transport mode has the correct components."""
@@ -369,7 +382,7 @@ class TestMCPTransportModes:
         mock_manager = MockUserManager(user_id="test_user")
         result = server.tool_router.call_tool("get_user_profile", {}, mock_manager)
         assert result["status"] == "success"  # Should work with auth
-        assert result["authenticated"] == True
+        assert result["authenticated"]
 
         # HTTP + Local (no auth required)
         os.environ["MCP_TRANSPORT"] = "http"
@@ -380,7 +393,7 @@ class TestMCPTransportModes:
         # Test same authentication functionality
         result = server.tool_router.call_tool("get_user_profile", {}, mock_manager)
         assert result["status"] == "success"  # Should work with auth
-        assert result["authenticated"] == True
+        assert result["authenticated"]
 
         # OAuth + Multiuser (OAuth auth) - Skip for now since OAuth components not available
         # os.environ["MCP_TRANSPORT"] = "oauth"
@@ -390,9 +403,8 @@ class TestMCPTransportModes:
         # OAuth section commented out - would require complex OAuth component mocking
         # that is not available in current environment
 
-    def test_error_handling_across_transports(self, temp_dir, base_env_setup):
+    def test_error_handling_across_transports(self):
         """Test error handling across different transport modes."""
-        from mcp_tool_router import MockUserManager
 
         transport_configs = [("fastmcp", "local"), ("http", "local"), ("sse", "local")]
 
@@ -417,39 +429,16 @@ class TestMCPTransportModes:
             assert result_no_auth["status"] == "error"
             assert "authentication required" in result_no_auth["message"].lower()
 
-    def teardown_method(self, method):
+    def teardown_method(self):
         """Clean up after each test."""
-        # Clean up all MCP and PANTRY environment variables
-        env_vars_to_clean = [
-            "MCP_TRANSPORT",
-            "MCP_MODE",
-            "MCP_HOST",
-            "MCP_PORT",
-            "MCP_PUBLIC_URL",
-            "PANTRY_BACKEND",
-            "PANTRY_DB_PATH",
-            "PANTRY_DATABASE_URL",
-            "ADMIN_TOKEN",
-            "USER_DATA_DIR",
-        ]
-        for var in env_vars_to_clean:
-            os.environ.pop(var, None)
+        cleanup_test_environment()
 
 
 class TestMCPTransportIntegration:
     """Integration tests across transport modes."""
 
-    @pytest.fixture
-    def temp_dir(self):
-        """Create a temporary directory for test data."""
-        temp_dir = tempfile.mkdtemp()
-        yield temp_dir
-        shutil.rmtree(temp_dir)
-
-    def test_same_functionality_across_transports(self, temp_dir):
+    def test_same_functionality_across_transports(self):
         """Test that core functionality works consistently across transports."""
-        import uuid
-        from mcp_tool_router import MockUserManager
 
         # Test core functionality across different transports
         transports_to_test = [("fastmcp", "local"), ("http", "local")]
@@ -467,7 +456,7 @@ class TestMCPTransportIntegration:
             # Test authentication-dependent functionality
             result = server.tool_router.call_tool("get_user_profile", {}, mock_manager)
             assert result["status"] == "success"
-            assert result["authenticated"] == True
+            assert result["authenticated"]
 
             # Test same operations with our stub tools
             test_item = f"test_item_{transport}_{unique_id}"
@@ -498,10 +487,8 @@ class TestMCPTransportIntegration:
                 if key.startswith(("MCP_", "PANTRY_")):
                     del os.environ[key]
 
-    def test_tool_compatibility_matrix(self, temp_dir):
+    def test_tool_compatibility_matrix(self):
         """Test that all tools work across supported transport modes."""
-        from mcp_tool_router import MockUserManager
-
         # Define tool compatibility using our stub tools
         core_tools = [
             "ping",
@@ -552,22 +539,9 @@ class TestMCPTransportIntegration:
                 if key.startswith(("MCP_", "PANTRY_")):
                     del os.environ[key]
 
-    def teardown_method(self, method):
+    def teardown_method(self):
         """Clean up after each test."""
-        env_vars_to_clean = [
-            "MCP_TRANSPORT",
-            "MCP_MODE",
-            "MCP_HOST",
-            "MCP_PORT",
-            "MCP_PUBLIC_URL",
-            "PANTRY_BACKEND",
-            "PANTRY_DB_PATH",
-            "PANTRY_DATABASE_URL",
-            "ADMIN_TOKEN",
-            "USER_DATA_DIR",
-        ]
-        for var in env_vars_to_clean:
-            os.environ.pop(var, None)
+        cleanup_test_environment()
 
 
 if __name__ == "__main__":
