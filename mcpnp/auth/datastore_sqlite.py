@@ -7,6 +7,7 @@ import sqlite3
 import time
 from typing import Dict, List, Optional, Tuple
 from werkzeug.security import generate_password_hash
+from .datastore import OAuthDatastore
 
 
 class SQLiteOAuthDatastore(OAuthDatastore):

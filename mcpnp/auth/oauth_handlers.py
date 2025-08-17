@@ -4,7 +4,7 @@ OAuth flow handlers - Centralized OAuth logic to reduce duplication.
 
 import logging
 import time
-from typing import Dict, Any, Optional
+from typing import Optional
 from urllib.parse import urlencode, quote
 from fastapi import HTTPException
 from fastapi.responses import RedirectResponse

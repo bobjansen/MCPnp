@@ -32,7 +32,7 @@ class OAuthDatastore(ABC):
         pass
 
     @abstractmethod
-    def create_user(self, username: str, password_hash: str, email: str = None) -> str:
+    def create_user(self, username: str, password: str, email: str = None) -> str:
         """Create a new user account. Returns user ID."""
         pass
 

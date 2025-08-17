@@ -58,3 +58,8 @@ packages = ["mcpnp"]
 [tool.black]
 line-length = 88
 target-version = ['py312']
+
+[dependency-groups]
+dev = [
+    "pylint>=3.3.8",
+]

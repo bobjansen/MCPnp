@@ -4,9 +4,11 @@ Implementatio of datastore with PostgreSQL backend.
 
 import json
 import time
-import psycopg2
 from typing import Dict, List, Optional, Tuple
+import psycopg2
 from psycopg2.extras import RealDictCursor
+from werkzeug.security import check_password_hash
+from .datastore import OAuthDatastore
 
 
 class PostgreSQLOAuthDatastore(OAuthDatastore):
@@ -117,7 +119,7 @@ class PostgreSQLOAuthDatastore(OAuthDatastore):
                     return json.loads(result[0])
                 return []
 
-    def create_user(self, username: str, password_hash: str, email: str = None) -> str:
+    def create_user(self, username: str, password: str, email: str = None) -> str:
         """Create a new user account. Returns user ID."""
         password_hash = generate_password_hash(password, method="scrypt")
         with psycopg2.connect(self.connection_url) as conn:
@@ -133,13 +135,11 @@ class PostgreSQLOAuthDatastore(OAuthDatastore):
                     result = cursor.fetchone()
                     conn.commit()
                     return str(result["id"])
-                except psycopg2.IntegrityError:
-                    raise ValueError("Username already exists")
+                except psycopg2.IntegrityError as exc:
+                    raise ValueError("Username already exists") from exc
 
     def authenticate_user(self, username: str, password: str) -> Optional[str]:
         """Authenticate user credentials. Returns user ID if valid."""
-        from werkzeug.security import check_password_hash
-
         with psycopg2.connect(self.connection_url) as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                 cursor.execute(
