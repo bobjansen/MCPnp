@@ -224,7 +224,9 @@ class TestMCPServerStartup:
             try:
                 os.chdir(temp_dir)
                 tool_router = MCPToolRouter()
-                server = UnifiedMCPServer(tool_router=tool_router, oauth_datastore=mock_datastore)
+                server = UnifiedMCPServer(
+                    tool_router=tool_router, oauth_datastore=mock_datastore
+                )
 
                 # Verify static files were mounted
                 # Note: This test verifies the mount call was attempted

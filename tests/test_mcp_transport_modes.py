@@ -236,7 +236,9 @@ class TestMCPTransportModes:
             mock_datastore.load_valid_tokens.return_value = ({}, {})
 
             tool_router = MCPToolRouter()
-            server = UnifiedMCPServer(tool_router=tool_router, oauth_datastore=mock_datastore)
+            server = UnifiedMCPServer(
+                tool_router=tool_router, oauth_datastore=mock_datastore
+            )
 
             # Verify server setup
             assert server.transport == "oauth"

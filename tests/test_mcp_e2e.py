@@ -4,18 +4,17 @@ End-to-End tests for MCP server using the actual MCP protocol.
 These tests simulate real Claude Desktop interactions through the MCP protocol.
 """
 
-import pytest
-import json
 import os
-import asyncio
-import tempfile
-import shutil
-from pathlib import Path
 import subprocess
-import time
 import sys
-from unittest.mock import patch
-import requests
+import threading
+import time
+from pathlib import Path
+import pytest
+
+# Import the MCP server directly for protocol testing
+from mcpnp.server import UnifiedMCPServer
+from mcp_tool_router import MCPToolRouter
 
 # Project root for subprocess calls
 project_root = Path(__file__).parent.parent.parent
@@ -25,46 +24,36 @@ class TestMCPE2E:
     """End-to-End tests for MCP server protocol."""
 
     @pytest.fixture
-    def temp_dir(self):
-        """Create a temporary directory for test databases."""
-        temp_dir = tempfile.mkdtemp()
-        yield temp_dir
-        shutil.rmtree(temp_dir)
-
-    @pytest.fixture
-    def server_process(self, temp_dir):
+    def server_process(self):
         """Start MCP server process for testing."""
         # Set up environment
         env = os.environ.copy()
-        env["PANTRY_DB_PATH"] = os.path.join(temp_dir, "test_pantry.db")
-        env["MCP_PORT"] = "8901"  # Use different port to avoid conflicts
 
         # Start server process
         cmd = [sys.executable, "-m", "uv", "run", "server.py"]
-        process = subprocess.Popen(
+        with subprocess.Popen(
             cmd,
             env=env,
             cwd=project_root,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-        )
+        ) as process:
 
-        # Wait for server to start
-        time.sleep(2)
+            # Wait for server to start
+            time.sleep(2)
 
-        yield process
+            yield process
 
-        # Cleanup
-        process.terminate()
-        try:
-            process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            process.kill()
+            # Cleanup
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
 
-    def test_server_startup(self, temp_dir):
+    def test_server_startup(self):
         """Test that server starts up correctly."""
         env = os.environ.copy()
-        env["PANTRY_DB_PATH"] = os.path.join(temp_dir, "test_startup.db")
 
         # Start server with timeout
         cmd = [
@@ -81,25 +70,23 @@ except KeyboardInterrupt:
 """,
         ]
 
-        process = subprocess.Popen(
+        with subprocess.Popen(
             cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
+        ) as process:
 
-        # Let it run briefly then stop
-        time.sleep(1)
-        process.terminate()
-        stdout, stderr = process.communicate(timeout=5)
+            # Let it run briefly then stop
+            time.sleep(1)
+            process.terminate()
+            _, stderr = process.communicate(timeout=5)
 
-        # Check that it started without critical errors
-        stderr_text = stderr.decode()
-        assert "Error" not in stderr_text or "import" not in stderr_text.lower()
+            # Check that it started without critical errors
+            stderr_text = stderr.decode()
+            assert "Error" not in stderr_text or "import" not in stderr_text.lower()
 
-    def test_fastmcp_mode(self, temp_dir):
+    def test_fastmcp_mode(self):
         """Test FastMCP transport mode."""
         env = os.environ.copy()
-        env["PANTRY_DB_PATH"] = os.path.join(temp_dir, "test_fastmcp.db")
         env["MCP_TRANSPORT"] = "fastmcp"
-        env["MCP_PORT"] = "8902"
 
         # Test FastMCP server initialization
         cmd = [
@@ -120,50 +107,31 @@ try:
     # Test that it has the expected components
     if hasattr(server, 'mcp') and server.mcp is not None:
         print("FastMCP component initialized")
-except Exception as e:
+except (ImportError, ValueError, TypeError, RuntimeError) as e:
     print(f"Error initializing FastMCP server: {{e}}")
     import traceback
     traceback.print_exc()
 """,
         ]
 
-        process = subprocess.Popen(
+        with subprocess.Popen(
             cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
+        ) as process:
 
-        stdout, stderr = process.communicate(timeout=10)
+            stdout, stderr = process.communicate(timeout=10)
 
-        # Check output for success indicators
-        output = stdout.decode() + stderr.decode()
-        assert "initialized successfully" in output
-        assert "FastMCP component initialized" in output
+            # Check output for success indicators
+            output = stdout.decode() + stderr.decode()
+            assert "initialized successfully" in output
+            assert "FastMCP component initialized" in output
 
-    def test_mcp_protocol_flow(self, temp_dir):
+    def test_mcp_protocol_flow(self):
         """Test complete MCP protocol communication flow."""
         # This simulates the MCP protocol handshake and tool calls
-
-        # Import the MCP server directly for protocol testing
-        from mcpnp.server import UnifiedMCPServer
-        from mcp_tool_router import MCPToolRouter
-
-        # Set up environment
-        os.environ["PANTRY_DB_PATH"] = os.path.join(temp_dir, "test_protocol.db")
 
         # Use our stub router for testing
         tool_router = MCPToolRouter()
         server = UnifiedMCPServer(tool_router=tool_router)
-
-        # Test MCP initialization (simulated)
-        init_result = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {"tools": {}},
-                "clientInfo": {"name": "test-client", "version": "1.0.0"},
-            },
-        }
 
         # Test tool listing
         available_tools = server.tool_router.get_available_tools()
@@ -181,30 +149,8 @@ except Exception as e:
         assert echo_result["status"] == "success"
         assert echo_result["echo"] == "test message"
 
-    def test_claude_desktop_config_generation(self, temp_dir):
-        """Test that we can generate valid Claude Desktop config."""
-        config = {
-            "mcpServers": {
-                "meal-manager": {
-                    "command": "uv",
-                    "args": ["run", "server.py"],
-                    "env": {"PANTRY_DB_PATH": os.path.join(temp_dir, "test_claude.db")},
-                }
-            }
-        }
-
-        # Validate config structure
-        assert "mcpServers" in config
-        assert "meal-manager" in config["mcpServers"]
-        assert "command" in config["mcpServers"]["meal-manager"]
-        assert "args" in config["mcpServers"]["meal-manager"]
-
-    def test_error_recovery(self, temp_dir):
+    def test_error_recovery(self):
         """Test error recovery and resilience."""
-        from mcpnp.server import UnifiedMCPServer
-        from mcp_tool_router import MCPToolRouter
-
-        os.environ["PANTRY_DB_PATH"] = os.path.join(temp_dir, "test_errors.db")
 
         # Use our stub router for testing
         tool_router = MCPToolRouter()
@@ -232,13 +178,8 @@ except Exception as e:
         result = server.tool_router.call_tool("ping", {}, None)
         assert result["status"] == "success"
 
-    def test_concurrent_operations(self, temp_dir):
+    def test_concurrent_operations(self):
         """Test concurrent tool operations."""
-        import threading
-        from mcpnp.server import UnifiedMCPServer
-        from mcp_tool_router import MCPToolRouter
-
-        os.environ["PANTRY_DB_PATH"] = os.path.join(temp_dir, "test_concurrent.db")
 
         # Use our stub router for testing
         tool_router = MCPToolRouter()
@@ -250,7 +191,7 @@ except Exception as e:
             try:
                 result = server.tool_router.call_tool(tool_name, args, None)
                 results.append((thread_id, result))
-            except Exception as e:
+            except (ValueError, TypeError, RuntimeError) as e:
                 results.append((thread_id, {"status": "error", "message": str(e)}))
 
         # Start multiple threads
@@ -268,13 +209,11 @@ except Exception as e:
 
         # Check results
         assert len(results) == 5
-        for thread_id, result in results:
+        for _, result in results:
             assert result["status"] == "success"
 
-    def test_data_persistence(self, temp_dir):
+    def test_data_persistence(self):
         """Test that data persists within the same session."""
-        from mcpnp.server import UnifiedMCPServer
-        from mcp_tool_router import MCPToolRouter
 
         # First server instance - add data
         tool_router1 = MCPToolRouter()
@@ -310,14 +249,13 @@ except Exception as e:
         items_result2 = server1.tool_router.call_tool("list_items", {}, None)
         assert items_result2["items"]["test_item"] == 8  # Should be 5 + 3
 
-    def teardown_method(self, method):
+    def teardown_method(self):
         """Clean up after each test."""
         # Clean up environment variables
         env_vars = [
             "MCP_MODE",
             "ADMIN_TOKEN",
             "USER_DATA_DIR",
-            "PANTRY_DB_PATH",
             "MCP_PORT",
             "MCP_TRANSPORT",
         ]
@@ -328,16 +266,8 @@ except Exception as e:
 class TestMCPProtocolCompliance:
     """Test MCP protocol compliance."""
 
-    @pytest.fixture
-    def temp_dir(self):
-        """Create a temporary directory for test databases."""
-        temp_dir = tempfile.mkdtemp()
-        yield temp_dir
-        shutil.rmtree(temp_dir)
-
     def test_tool_schema_compliance(self):
         """Test that tool schemas comply with MCP standard."""
-        from mcp_tool_router import MCPToolRouter
 
         router = MCPToolRouter()
         tools = router.get_available_tools()
@@ -363,10 +293,8 @@ class TestMCPProtocolCompliance:
                         "description" in prop_def
                     ), f"Property {prop_name} missing description: {prop_def}"
 
-    def test_response_format_compliance(self, temp_dir):
+    def test_response_format_compliance(self):
         """Test that responses comply with expected format."""
-        from mcpnp.server import UnifiedMCPServer
-        from mcp_tool_router import MCPToolRouter
 
         # Use our stub router for testing
         tool_router = MCPToolRouter()
