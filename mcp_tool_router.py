@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 class MockUserManager:
     """Mock user manager for testing authentication-dependent tools."""
+
     def __init__(self, user_id: str = "test_user", authenticated: bool = True):
         self.user_id = user_id
         self.authenticated = authenticated
@@ -262,7 +263,11 @@ class MCPToolRouter:
     # Tool implementations
     def _ping(self, arguments: Dict[str, Any], manager=None) -> Dict[str, Any]:
         """Simple ping test."""
-        return {"status": "success", "message": "pong", "timestamp": "2024-01-01T00:00:00Z"}
+        return {
+            "status": "success",
+            "message": "pong",
+            "timestamp": "2024-01-01T00:00:00Z",
+        }
 
     def _echo(self, arguments: Dict[str, Any], manager=None) -> Dict[str, Any]:
         """Echo back the provided message."""
@@ -398,7 +403,9 @@ class MCPToolRouter:
             "user": dict(user),
         }
 
-    def _simulate_error(self, arguments: Dict[str, Any], manager=None) -> Dict[str, Any]:
+    def _simulate_error(
+        self, arguments: Dict[str, Any], manager=None
+    ) -> Dict[str, Any]:
         """Simulate an error for testing."""
         error_type = arguments.get("error_type", "RuntimeError")
 
@@ -409,7 +416,9 @@ class MCPToolRouter:
         else:
             raise RuntimeError("Simulated RuntimeError for testing")
 
-    def _validate_params(self, arguments: Dict[str, Any], manager=None) -> Dict[str, Any]:
+    def _validate_params(
+        self, arguments: Dict[str, Any], manager=None
+    ) -> Dict[str, Any]:
         """Test parameter validation."""
         required_param = arguments.get("required_param")
         optional_param = arguments.get("optional_param")
@@ -430,81 +439,81 @@ class MCPToolRouter:
 
         return result
 
-    def _get_user_profile(self, arguments: Dict[str, Any], manager=None) -> Dict[str, Any]:
+    def _get_user_profile(
+        self, arguments: Dict[str, Any], manager=None
+    ) -> Dict[str, Any]:
         """Get authenticated user profile (simulates authentication requirement)."""
         if manager is None:
             return {
-                "status": "error", 
-                "message": "Authentication required - no user session"
+                "status": "error",
+                "message": "Authentication required - no user session",
             }
-        
+
         # Simulate different user profiles based on manager type/id
-        user_id = getattr(manager, 'user_id', 'test_user')
-        
+        user_id = getattr(manager, "user_id", "test_user")
+
         # Mock user profiles
         profiles = {
-            'test_user': {
-                'user_id': 'test_user',
-                'username': 'testuser',
-                'email': 'test@example.com',
-                'role': 'user',
-                'created_at': '2024-01-01T00:00:00Z',
-                'last_login': '2024-01-15T10:30:00Z'
+            "test_user": {
+                "user_id": "test_user",
+                "username": "testuser",
+                "email": "test@example.com",
+                "role": "user",
+                "created_at": "2024-01-01T00:00:00Z",
+                "last_login": "2024-01-15T10:30:00Z",
             },
-            'admin_user': {
-                'user_id': 'admin_user', 
-                'username': 'admin',
-                'email': 'admin@example.com',
-                'role': 'admin',
-                'created_at': '2023-01-01T00:00:00Z',
-                'last_login': '2024-01-15T11:00:00Z'
-            }
-        }
-        
-        profile = profiles.get(str(user_id), profiles['test_user'])
-        
-        return {
-            "status": "success",
-            "profile": profile,
-            "authenticated": True
+            "admin_user": {
+                "user_id": "admin_user",
+                "username": "admin",
+                "email": "admin@example.com",
+                "role": "admin",
+                "created_at": "2023-01-01T00:00:00Z",
+                "last_login": "2024-01-15T11:00:00Z",
+            },
         }
 
-    def _get_protected_data(self, arguments: Dict[str, Any], manager=None) -> Dict[str, Any]:
+        profile = profiles.get(str(user_id), profiles["test_user"])
+
+        return {"status": "success", "profile": profile, "authenticated": True}
+
+    def _get_protected_data(
+        self, arguments: Dict[str, Any], manager=None
+    ) -> Dict[str, Any]:
         """Get protected data specific to authenticated user."""
         if manager is None:
             return {
                 "status": "error",
-                "message": "Authentication required - no user session"
+                "message": "Authentication required - no user session",
             }
-        
+
         data_type = arguments.get("data_type", "personal")
-        user_id = getattr(manager, 'user_id', 'test_user')
-        
+        user_id = getattr(manager, "user_id", "test_user")
+
         # Mock protected data
         protected_data = {
-            'personal': {
-                'preferences': {'theme': 'dark', 'language': 'en'},
-                'private_notes': ['Note 1', 'Note 2'],
-                'api_keys': ['key_***masked***']
+            "personal": {
+                "preferences": {"theme": "dark", "language": "en"},
+                "private_notes": ["Note 1", "Note 2"],
+                "api_keys": ["key_***masked***"],
             },
-            'settings': {
-                'notifications': True,
-                'privacy_level': 'medium',
-                'data_retention': '1year'
+            "settings": {
+                "notifications": True,
+                "privacy_level": "medium",
+                "data_retention": "1year",
             },
-            'history': {
-                'last_actions': ['login', 'view_profile', 'update_settings'],
-                'login_count': 42,
-                'last_activity': '2024-01-15T10:30:00Z'
-            }
+            "history": {
+                "last_actions": ["login", "view_profile", "update_settings"],
+                "login_count": 42,
+                "last_activity": "2024-01-15T10:30:00Z",
+            },
         }
-        
+
         return {
-            "status": "success", 
+            "status": "success",
             "data_type": data_type,
             "user_id": str(user_id),
             "data": protected_data.get(data_type, {}),
-            "authenticated": True
+            "authenticated": True,
         }
 
     def _admin_status(self, arguments: Dict[str, Any], manager=None) -> Dict[str, Any]:
@@ -512,20 +521,20 @@ class MCPToolRouter:
         if manager is None:
             return {
                 "status": "error",
-                "message": "Authentication required - no user session"  
+                "message": "Authentication required - no user session",
             }
-        
-        user_id = getattr(manager, 'user_id', 'test_user')
-        
+
+        user_id = getattr(manager, "user_id", "test_user")
+
         # Mock admin users
-        admin_users = ['admin_user', 'root', 'administrator']
+        admin_users = ["admin_user", "root", "administrator"]
         is_admin = str(user_id) in admin_users
-        
+
         return {
             "status": "success",
-            "user_id": str(user_id), 
+            "user_id": str(user_id),
             "is_admin": is_admin,
             "admin_level": "full" if is_admin else "none",
             "permissions": ["read", "write", "delete"] if is_admin else ["read"],
-            "authenticated": True
+            "authenticated": True,
         }

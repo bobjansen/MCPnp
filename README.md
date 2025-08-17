@@ -53,6 +53,58 @@ server.run(mode="oauth", multiuser=True)
 pip install mcpnp
 ```
 
+## Development
+
+### Code Quality Checks
+
+This project includes a comprehensive code quality check script:
+
+```bash
+# Run all checks (formatting, linting, tests)
+python check.py
+
+# Quick mode (faster, skip some checks)
+python check.py --quick
+
+# Auto-fix formatting issues
+python check.py --fix
+```
+
+The script validates:
+- **Black formatting** - Code style consistency
+- **Pylint analysis** - Code quality and standards
+- **Pytest execution** - All tests pass
+
+### Running Tests
+
+```bash
+# Run all tests
+uv run pytest tests/ -v
+
+# Run specific test file
+uv run pytest tests/test_mcp_e2e.py -v
+
+# Quick test run
+uv run pytest tests/ --tb=line -q
+```
+
+### Code Formatting
+
+```bash
+# Check formatting
+uv run black --check --diff .
+
+# Auto-fix formatting
+uv run black .
+```
+
+### Linting
+
+```bash
+# Run pylint on all code
+uv run pylint mcpnp/ tests/ *.py
+```
+
 ## Documentation
 
 See the main documentation for detailed setup instructions and examples.

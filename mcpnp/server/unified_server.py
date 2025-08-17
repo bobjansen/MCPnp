@@ -544,7 +544,11 @@ class UnifiedMCPServer:
                     except asyncio.CancelledError:
                         logger.info("SSE connection cancelled")
                         return
-                    except (ConnectionError, BrokenPipeError, asyncio.CancelledError) as e:
+                    except (
+                        ConnectionError,
+                        BrokenPipeError,
+                        asyncio.CancelledError,
+                    ) as e:
                         log_error_with_traceback(e, "Server-Sent Events")
                         yield f'data: {{"type": "error", "message": "{str(e)}"}}\n\n'
                         return
@@ -732,7 +736,7 @@ class UnifiedMCPServer:
     async def run_async(self):
         """Run the server asynchronously."""
         if self.app:
-            #pylint: disable=import-outside-toplevel
+            # pylint: disable=import-outside-toplevel
             import uvicorn
 
             config = uvicorn.Config(
