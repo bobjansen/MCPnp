@@ -2,10 +2,9 @@
 MCP Tool Router - Stub implementation for testing
 """
 
-import json
 import logging
 import traceback
-from typing import Dict, Any, Optional, Callable
+from typing import Dict, Any, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +24,8 @@ def log_tool_error(error: Exception, tool_name: str, context: str = ""):
         error_msg = f"Error in tool '{tool_name}' {context}: {str(error)}\n\nFull traceback:\n{tb_str}"
         logger.error(error_msg)
     except Exception as log_error:
-        logger.error(f"Failed to log tool error: {log_error}")
-        logger.error(f"Original error in {tool_name}: {error}")
+        logger.error("Failed to log tool error: %s", log_error)
+        logger.error("Original error in %s: %s", tool_name, error)
 
 
 class MCPToolRouter:
@@ -411,10 +410,9 @@ class MCPToolRouter:
 
         if error_type == "ValueError":
             raise ValueError("Simulated ValueError for testing")
-        elif error_type == "KeyError":
+        if error_type == "KeyError":
             raise KeyError("Simulated KeyError for testing")
-        else:
-            raise RuntimeError("Simulated RuntimeError for testing")
+        raise RuntimeError("Simulated RuntimeError for testing")
 
     def _validate_params(
         self, arguments: Dict[str, Any], manager=None

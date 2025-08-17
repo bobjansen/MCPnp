@@ -26,9 +26,11 @@ Examples:
 import os
 import sys
 import argparse
+from mcpnp.server import UnifiedMCPServer
 
 
 def main():
+    """Run the MCP server"""
     parser = argparse.ArgumentParser(
         description="MCPnp Unified Server Launcher",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -76,10 +78,9 @@ def main():
             os.environ["MCP_TRANSPORT"] = "oauth"
 
     # Import after environment is set
-    from mcpnp.server import UnifiedMCPServer
 
     # Create and run server
-    print(f"Starting MCPnp server:")
+    print("Starting MCPnp server:")
     print(f"  Transport: {args.transport}")
     print(f"  Auth Mode: {os.environ.get('MCP_MODE', 'local')}")
     print(f"  Address: {args.host}:{args.port}")
