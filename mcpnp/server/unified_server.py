@@ -17,15 +17,45 @@ Environment Configuration:
 - MCP_PUBLIC_URL: For OAuth mode
 """
 
+import asyncio
 import os
 import sys
 import json
 import logging
-import asyncio
+import pathlib
 import traceback
-from typing import Any, Dict, List, Optional, Union, Callable
+from typing import Any, Callable, Dict, Optional
 from datetime import datetime, date
 from pathlib import Path
+from .context import MCPContext
+
+# Import all possible transport modules
+try:
+    from fastapi import FastAPI, Form, Request
+    from fastapi.security import HTTPBearer
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.staticfiles import StaticFiles
+    from fastapi.responses import JSONResponse, HTMLResponse, StreamingResponse
+except ImportError:
+    FastAPI = None
+
+try:
+    from mcp.server.fastmcp import FastMCP
+except ImportError:
+    FastMCP = None
+
+try:
+    from ..auth.oauth_server import OAuthServer
+    from ..auth.oauth_handlers import OAuthFlowHandler
+    from ..auth.datastore import OAuthDatastore
+    from ..templates.oauth_templates import (
+        generate_login_form,
+        generate_register_form,
+        generate_error_page,
+    )
+except ImportError:
+    OAuthServer = None
+    OAuthDatastore = None
 
 
 # Configure logging early with file handler for tracebacks
@@ -45,6 +75,7 @@ def setup_error_logging():
 
     # Create detailed formatter with timestamp
     formatter = logging.Formatter(
+        # pylint: disable=line-too-long
         fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s\n%(pathname)s:%(lineno)d in %(funcName)s()",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
@@ -78,55 +109,22 @@ def log_error_with_traceback(error: Exception, context: str = ""):
         tb_str = traceback.format_exc()
         error_msg = f"Error in {context}: {str(error)}\n\nFull traceback:\n{tb_str}"
         logger.error(error_msg)
-        logger.info(f"Error details written to: {ERROR_LOG_PATH}")
+        logger.info("Error details written to: %s", ERROR_LOG_PATH)
     except Exception as log_error:
         # Fallback if logging itself fails
         print(f"Failed to log error: {log_error}", file=sys.stderr)
         print(f"Original error: {error}", file=sys.stderr)
 
 
-# Core imports
-from .context import MCPContext
-
-# Import all possible transport modules
-try:
-    from mcp.server.fastmcp import FastMCP
-except ImportError:
-    FastMCP = None
-
-try:
-    from fastapi import FastAPI, HTTPException, Request, Form, Depends
-    from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-    from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-    from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.staticfiles import StaticFiles
-    from fastapi.responses import StreamingResponse
-except ImportError:
-    FastAPI = None
-
-try:
-    from ..auth.oauth_server import OAuthServer
-    from ..auth.oauth_handlers import OAuthFlowHandler
-    from ..auth.datastore import OAuthDatastore
-    from ..templates.oauth_templates import (
-        generate_login_form,
-        generate_register_form,
-        generate_error_page,
-    )
-except ImportError:
-    OAuthServer = None
-    OAuthDatastore = None
-
-
 class DateTimeJSONEncoder(json.JSONEncoder):
     """Custom JSON encoder that handles datetime and date objects."""
 
-    def default(self, obj):
-        if isinstance(obj, datetime):
-            return obj.isoformat()
-        elif isinstance(obj, date):
-            return obj.isoformat()
-        return super().default(obj)
+    def default(self, o):
+        if isinstance(o, datetime):
+            return o.isoformat()
+        if isinstance(o, date):
+            return o.isoformat()
+        return super().default(o)
 
 
 class UnifiedMCPServer:
@@ -176,12 +174,12 @@ class UnifiedMCPServer:
             self._register_oauth_endpoints()
             # Log OAuth endpoints like the original working server
             public_url = os.getenv("MCP_PUBLIC_URL", f"http://{self.host}:{self.port}")
-            logger.info(f"Starting OAUTH server on {self.host}:{self.port}")
+            logger.info("Starting OAUTH server on %s:%s", self.host, self.port)
             logger.info("OAuth endpoints:")
-            logger.info(f"  Authorization: {public_url}/authorize")
-            logger.info(f"  Token: {public_url}/token")
+            logger.info("  Authorization: %s/authorize", public_url)
+            logger.info("  Token: %s/token", public_url)
             logger.info(
-                f"  Discovery: {public_url}/.well-known/oauth-authorization-server"
+                "  Discovery: %s/.well-known/oauth-authorization-server", public_url
             )
 
     def _setup_transport(self):
@@ -211,7 +209,6 @@ class UnifiedMCPServer:
 
             # Mount static files for OAuth
             if self.transport == "oauth":
-                import pathlib
 
                 static_dir = pathlib.Path(__file__).parent.parent / "static"
                 if static_dir.exists():
@@ -220,7 +217,8 @@ class UnifiedMCPServer:
                     )
                 else:
                     logger.warning(
-                        f"Static directory not found at {static_dir}, OAuth UI may not work properly"
+                        "Static directory not found at %s, OAuth UI may not work properly",
+                        static_dir,
                     )
 
             # Add request logging
@@ -229,7 +227,10 @@ class UnifiedMCPServer:
                 response = await call_next(request)
                 if response.status_code >= 400:
                     logger.warning(
-                        f"Request: {request.method} {request.url} -> {response.status_code}"
+                        "Request: %s %s -> %s",
+                        request.method,
+                        request.url,
+                        response.status_code,
                     )
                 return response
 
@@ -253,14 +254,12 @@ class UnifiedMCPServer:
 
             self._register_http_endpoints()
 
-    def get_current_user(self, credentials=None) -> Optional[str]:
+    def get_current_user(self, token) -> Optional[str]:
         """Extract user from authentication credentials."""
-        if not credentials:
-            return None
 
         if self.oauth:
             # OAuth mode
-            token_data = self.oauth.validate_access_token(credentials.credentials)
+            token_data = self.oauth.validate_access_token(token)
             return token_data["user_id"] if token_data else None
 
         # No other authentication modes supported
@@ -268,13 +267,12 @@ class UnifiedMCPServer:
         return None
 
     def get_user_data_manager(
-        self, user_id: Optional[str] = None, token: Optional[str] = None
+        self, user_id: Optional[str] = None
     ) -> tuple[Optional[str], Optional[Any]]:
         """Get authenticated user and their data manager instance."""
         if self.transport == "oauth":
             return self._get_user_data_manager_oauth(user_id)
-        else:
-            return self.context.authenticate_and_get_data_manager(token)
+        return self.context.authenticate_and_get_data_manager()
 
     def _get_user_data_manager_oauth(
         self, user_id: Optional[str]
@@ -304,7 +302,7 @@ class UnifiedMCPServer:
                     "status": "error",
                     "message": "Admin token and username required",
                 }
-            return self.context.create_user(username, admin_token)
+            return self.context.create_user(username)
 
         if tool_name == "list_users":
             admin_token = arguments.get("admin_token")
@@ -325,7 +323,7 @@ class UnifiedMCPServer:
             return {"status": "success", "users": users}
 
         # Get authenticated user and data manager
-        user_id, data_manager = self.get_user_data_manager(token=token)
+        _, data_manager = self.get_user_data_manager()
         if not data_manager:
             return {"status": "error", "message": "Authentication required"}
 
@@ -352,15 +350,14 @@ class UnifiedMCPServer:
                 tool_decorator(tool_func)
             except Exception as e:
                 # If tool registration fails, skip this tool
-                logger.warning(f"Failed to register tool {tool_name}: {e}")
+                logger.warning("Failed to register tool %s: %s", tool_name, e)
 
     def _create_fastmcp_tool_wrapper(self, tool_name: str):
         """Create a FastMCP tool wrapper for a given tool name."""
 
-        def tool_wrapper(*args, **kwargs):
+        def tool_wrapper(*_, **kwargs):
             # Add token handling if needed
-            token = kwargs.get("token")
-            user_id, data_manager = self.get_user_data_manager(token=token)
+            _, data_manager = self.get_user_data_manager()
             if not data_manager:
                 return {"status": "error", "message": "Authentication required"}
 
@@ -425,12 +422,10 @@ class UnifiedMCPServer:
                         },
                     }
 
-                elif method == "notifications/initialized":
-                    from fastapi.responses import JSONResponse
-
+                if method == "notifications/initialized":
                     return JSONResponse(content={}, status_code=202)
 
-                elif method == "tools/list":
+                if method == "tools/list":
                     tools = []
                     if self.tool_router:
                         available_tools = getattr(
@@ -444,7 +439,7 @@ class UnifiedMCPServer:
                         "result": {"tools": tools},
                     }
 
-                elif method == "tools/call":
+                if method == "tools/call":
                     tool_name = params.get("name")
                     arguments = params.get("arguments", {})
 
@@ -464,18 +459,10 @@ class UnifiedMCPServer:
                         user_id = None
                         auth_header = request.headers.get("authorization")
                         if auth_header and auth_header.startswith("Bearer "):
-                            # Create simple credentials object for validation
-                            class SimpleCredentials:
-                                def __init__(self, token):
-                                    self.credentials = token
-
-                            credentials = SimpleCredentials(auth_header[7:])
-                            user_id = self.get_current_user(credentials)
+                            user_id = self.get_current_user(auth_header[7:])
 
                         if not user_id and self.auth_mode != "local":
                             # Return HTTP 401 with WWW-Authenticate header for OAuth flow
-                            from fastapi.responses import JSONResponse
-
                             return JSONResponse(
                                 content={
                                     "error": "unauthorized",
@@ -521,15 +508,14 @@ class UnifiedMCPServer:
                         },
                     }
 
-                else:
-                    return {
-                        "jsonrpc": "2.0",
-                        "id": request_id,
-                        "error": {
-                            "code": -32601,
-                            "message": f"Method not found: {method}",
-                        },
-                    }
+                return {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "error": {
+                        "code": -32601,
+                        "message": f"Method not found: {method}",
+                    },
+                }
 
             except Exception as e:
                 log_error_with_traceback(e, "MCP request handling")
@@ -543,12 +529,13 @@ class UnifiedMCPServer:
         if self.transport == "sse":
 
             @self.app.get("/events")
-            async def event_stream(request: Request):
+            async def event_stream(_: Request):
                 """Server-sent events endpoint for real-time updates."""
 
                 async def generate_events():
                     try:
                         # Basic SSE setup
+                        # pylint: disable=line-too-long
                         yield 'data: {"type": "connected", "message": "MCP SSE server connected"}\n\n'
                         # Keep connection alive
                         while True:
@@ -638,6 +625,7 @@ class UnifiedMCPServer:
 
             except Exception as e:
                 log_error_with_traceback(e, "OAuth authorization")
+                # pylint: disable=line-too-long
                 return HTMLResponse(
                     content=f"<html><body><h2>Authorization Error</h2><p>{str(e)}</p></body></html>",
                     status_code=500,
@@ -645,7 +633,7 @@ class UnifiedMCPServer:
 
         @self.app.post("/authorize")
         async def handle_authorization(
-            response_type: str = Form(...),
+            _: str = Form(...),
             client_id: str = Form(...),
             redirect_uri: str = Form(...),
             scope: str = Form(...),
@@ -658,7 +646,7 @@ class UnifiedMCPServer:
             """Handle authorization form submission."""
             try:
                 # Authenticate user and create authorization code like the original
-                user_id, auth_code = self.oauth_handler.authenticate_and_create_code(
+                _, auth_code = self.oauth_handler.authenticate_and_create_code(
                     username,
                     password,
                     client_id,
@@ -696,11 +684,10 @@ class UnifiedMCPServer:
                         code, client_id, redirect_uri, code_verifier, client_secret
                     )
                     return tokens
-                elif grant_type == "refresh_token":
+                if grant_type == "refresh_token":
                     tokens = self.oauth.refresh_access_token(refresh_token, client_id)
                     return tokens
-                else:
-                    raise ValueError(f"Unsupported grant_type: {grant_type}")
+                raise ValueError(f"Unsupported grant_type: {grant_type}")
 
             except Exception as e:
                 log_error_with_traceback(e, "OAuth token exchange")
@@ -729,13 +716,12 @@ class UnifiedMCPServer:
                     return HTMLResponse(
                         content="<h2>Registration successful! You can now log in.</h2>"
                     )
-                else:
-                    return HTMLResponse(
-                        content=generate_error_page(
-                            "Registration failed - user might already exist"
-                        ),
-                        status_code=400,
-                    )
+                return HTMLResponse(
+                    content=generate_error_page(
+                        "Registration failed - user might already exist"
+                    ),
+                    status_code=400,
+                )
 
             except Exception as e:
                 log_error_with_traceback(e, "OAuth user registration")
@@ -746,6 +732,7 @@ class UnifiedMCPServer:
     async def run_async(self):
         """Run the server asynchronously."""
         if self.app:
+            #pylint: disable=import-outside-toplevel
             import uvicorn
 
             config = uvicorn.Config(
