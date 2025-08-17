@@ -78,10 +78,44 @@ class MCPContext:
         """Get the current user from context."""
         return current_user.get()
 
-    def create_user(self) -> Dict[str, Any]:
-        """Create a new user (admin only)."""
-        # User creation is only supported in multiuser mode through OAuth
-        return {
-            "status": "error",
-            "message": "User creation is handled by OAuth in multiuser mode",
-        }
+    def get_data_manager(self, user_id: str) -> Optional[Any]:
+        """Get data manager for a specific user."""
+        if user_id in self.data_managers:
+            return self.data_managers[user_id]
+
+        # Create data manager for new user if factory is available
+        if self.data_manager_factory and self.mode == "multiuser":
+            # In multiuser mode, each user gets their own database
+            db_path = f"user_data/{user_id}/user.sqlite"
+
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+
+            # Create data manager instance
+            data_manager = self.data_manager_factory(connection_string=db_path)
+            self.data_managers[user_id] = data_manager
+
+            # Initialize database if setup function provided
+            if self.database_setup_func:
+                self.database_setup_func(db_path)
+
+            return data_manager
+
+        return None
+
+    def create_user(self, username: str) -> Dict[str, Any]:
+        """Create a new user."""
+        if self.mode == "local":
+            return {
+                "status": "error",
+                "message": "User creation not supported in local mode",
+            }
+
+        # In multiuser mode, delegate to user manager
+        try:
+            success = self.user_manager.create_user(username)
+            if success:
+                return {"status": "success", "message": f"User {username} created"}
+            return {"status": "error", "message": "User creation failed"}
+        except Exception as e:
+            return {"status": "error", "message": f"User creation failed: {str(e)}"}

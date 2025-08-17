@@ -28,19 +28,23 @@ class UserManager:
         self.mode = mode  # "local" or "multiuser"
         self.database_setup_func = database_setup_func
 
-    def authenticate(self) -> Optional[str]:
+    def authenticate(self, token: str = None) -> Optional[str]:
         """Authenticate a user by token and return user_id."""
+        if self.mode == "local":
+            return "local_user"
+
         # In multiuser mode, authentication is handled by OAuth
         # This method is not used for multiuser mode
         return None
 
-    def create_user(self) -> str:
-        """Create a new user and return their token."""
+    def create_user(self, username: str) -> bool:
+        """Create a new user."""
         if self.mode == "local":
-            raise ValueError("Cannot create users in local mode")
+            return False  # Cannot create users in local mode
 
         # In multiuser mode, user creation is handled by OAuth registration
-        raise ValueError("User creation is handled by OAuth in multiuser mode")
+        # This is a placeholder that should be overridden by OAuth implementation
+        return False
 
     def list_users(self) -> list:
         """List all users (admin only)."""
