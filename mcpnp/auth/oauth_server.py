@@ -14,7 +14,6 @@ import time
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Tuple
 from urllib.parse import parse_qs, urlencode
-from werkzeug.security import generate_password_hash
 
 from .datastore import OAuthDatastore
 
@@ -120,8 +119,7 @@ class OAuthServer:
 
     def create_user(self, username: str, password: str, email: str = None) -> str:
         """Create a new user account."""
-        password_hash = generate_password_hash(password, method="scrypt")
-        return self.datastore.create_user(username, password_hash, email)
+        return self.datastore.create_user(username, password, email)
 
     def register_user(self, username: str, email: str, password: str) -> bool:
         """Register a new user account. Returns True if successful."""

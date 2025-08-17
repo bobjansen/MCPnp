@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Tuple
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from werkzeug.security import generate_password_hash
 
 
 class OAuthDatastore(ABC):
@@ -38,7 +39,7 @@ class OAuthDatastore(ABC):
         pass
 
     @abstractmethod
-    def create_user(self, username: str, password_hash: str, email: str = None) -> str:
+    def create_user(self, username: str, password: str, email: str = None) -> str:
         """Create a new user account. Returns user ID."""
         pass
 
@@ -170,8 +171,9 @@ class SQLiteOAuthDatastore(OAuthDatastore):
                 return json.loads(result[0])
             return []
 
-    def create_user(self, username: str, password_hash: str, email: str = None) -> str:
+    def create_user(self, username: str, password: str, email: str = None) -> str:
         """Create a new user account. Returns user ID."""
+        password_hash = generate_password_hash(password, method="scrypt")
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
                 """
@@ -344,6 +346,7 @@ class PostgreSQLOAuthDatastore(OAuthDatastore):
 
     def create_user(self, username: str, password_hash: str, email: str = None) -> str:
         """Create a new user account. Returns user ID."""
+        password_hash = generate_password_hash(password, method="scrypt")
         with psycopg2.connect(self.connection_url) as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                 try:
