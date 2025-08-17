@@ -231,8 +231,12 @@ class TestMCPTransportModes:
             mock_handler_instance = MagicMock()
             mock_handler.return_value = mock_handler_instance
 
+            # Create mock datastore
+            mock_datastore = MagicMock()
+            mock_datastore.load_valid_tokens.return_value = ({}, {})
+
             tool_router = MCPToolRouter()
-            server = UnifiedMCPServer(tool_router=tool_router)
+            server = UnifiedMCPServer(tool_router=tool_router, oauth_datastore=mock_datastore)
 
             # Verify server setup
             assert server.transport == "oauth"
@@ -280,7 +284,11 @@ class TestMCPTransportModes:
             mock_handler_instance.validate_oauth_request.return_value = True
             mock_handler.return_value = mock_handler_instance
 
-            server = UnifiedMCPServer()
+            # Create mock datastore
+            mock_datastore = MagicMock()
+            mock_datastore.load_valid_tokens.return_value = ({}, {})
+
+            server = UnifiedMCPServer(oauth_datastore=mock_datastore)
 
             from fastapi.testclient import TestClient
 

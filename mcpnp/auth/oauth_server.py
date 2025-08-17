@@ -119,7 +119,8 @@ class OAuthServer:
 
     def create_user(self, username: str, password: str, email: str = None) -> str:
         """Create a new user account."""
-        return self.datastore.create_user(username, password, email)
+        password_hash = generate_password_hash(password, method="scrypt")
+        return self.datastore.create_user(username, password_hash, email)
 
     def register_user(self, username: str, email: str, password: str) -> bool:
         """Register a new user account. Returns True if successful."""

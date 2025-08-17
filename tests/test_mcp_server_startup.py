@@ -215,12 +215,16 @@ class TestMCPServerStartup:
             patch("fastapi.staticfiles.StaticFiles") as mock_static,
         ):
 
+            # Create mock datastore
+            mock_datastore = MagicMock()
+            mock_datastore.load_valid_tokens.return_value = ({}, {})
+
             # Change to temp directory so static files can be found
             original_cwd = os.getcwd()
             try:
                 os.chdir(temp_dir)
                 tool_router = MCPToolRouter()
-                server = UnifiedMCPServer(tool_router=tool_router)
+                server = UnifiedMCPServer(tool_router=tool_router, oauth_datastore=mock_datastore)
 
                 # Verify static files were mounted
                 # Note: This test verifies the mount call was attempted
