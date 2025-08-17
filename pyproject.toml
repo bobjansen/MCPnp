@@ -45,6 +45,14 @@ Homepage = "https://github.com/yourusername/mcpnp"
 Repository = "https://github.com/yourusername/mcpnp"
 Issues = "https://github.com/yourusername/mcpnp/issues"
 
+[project.scripts]
+mcpnp = "mcpnp.cli:main"
+mcpnp-server = "run_mcp:main"
+
+[project.entry-points."mcpnp.backends"]
+sqlite = "mcpnp.backends.sqlite:SQLiteDataManager"
+postgresql = "mcpnp.backends.postgresql:PostgreSQLDataManager"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"

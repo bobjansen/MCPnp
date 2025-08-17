@@ -306,7 +306,9 @@ class UnifiedMCPServer:
                 return {"status": "error", "message": "Admin token required"}
             # Verify admin token and return user list
             admin_user = self.context.user_manager.authenticate(admin_token)
-            if admin_user != "local_user":  # In local mode, local_user has admin privileges
+            if (
+                admin_user != "local_user"
+            ):  # In local mode, local_user has admin privileges
                 return {"status": "error", "message": "Admin access required"}
 
             users = []

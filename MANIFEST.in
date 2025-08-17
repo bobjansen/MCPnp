@@ -1,0 +1,35 @@
+# Include documentation
+include README.md
+include INSTALL.md
+include CLAUDE.md
+include LICENSE
+
+# Include configuration files
+include pyproject.toml
+include .pylintrc
+
+# Include scripts
+include run_mcp.py
+include check.py
+
+# Include templates and static files
+recursive-include mcpnp/templates *.html
+recursive-include mcpnp/static *.css *.js *.png *.jpg *.svg
+
+# Include test files for reference
+recursive-include tests *.py
+
+# Exclude development and build artifacts
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.pyd
+global-exclude __pycache__
+global-exclude .pytest_cache
+global-exclude .coverage
+global-exclude *.egg-info
+global-exclude build
+global-exclude dist
+global-exclude .git*
+global-exclude .venv
+global-exclude logs
+global-exclude user_data
