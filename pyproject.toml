@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcpnp"
-version = "1.0.0"
+version = "1.0.1"
 description = "MCPnp - Model Context Protocol, no problem. A generic, reusable MCP server framework."
 license = "AGPL-3.0-or-later"
 readme = "README.md"

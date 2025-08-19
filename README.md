@@ -53,6 +53,112 @@ server.run(mode="oauth", multiuser=True)
 pip install mcpnp
 ```
 
+## Examples
+
+### MCP Router Example
+
+The `mcp_router_example.py` file provides a self-contained example of building MCP tools with the framework. It demonstrates:
+
+- **Tool Definition**: How to define tools with proper JSON schemas
+- **Tool Routing**: Dispatching tool calls to appropriate implementations
+- **Data Storage**: Simple in-memory key-value storage
+- **Error Handling**: Proper error responses and exception handling
+
+#### Available Tools
+
+The example includes these tools:
+
+- `echo` - Echo back any message
+- `add_data` - Store key-value pairs in memory
+- `get_data` - Retrieve values by key
+- `list_data` - List all stored keys
+- `calculate` - Basic arithmetic operations (add, subtract, multiply, divide)
+
+#### Running the Example
+
+```bash
+# Run the standalone example (just prints test output)
+uv run python mcp_router_example.py
+```
+
+#### Interactive Usage
+
+To actually interact with the MCP tools, you need to run the server with the tool router:
+
+**HTTP Mode (easiest for testing):**
+```bash
+# Create a simple script to run the server with the example router
+cat > test_server.py << 'EOF'
+from mcp_router_example import MCPToolRouter
+from mcpnp import UnifiedMCPServer
+import os
+
+os.environ['MCP_TRANSPORT'] = 'http'
+os.environ['MCP_HOST'] = 'localhost'
+os.environ['MCP_PORT'] = '8080'
+
+router = MCPToolRouter()
+server = UnifiedMCPServer(tool_router=router)
+server.run()
+EOF
+
+# Run the server
+uv run python test_server.py
+```
+
+**Test the tools with curl:**
+```bash
+# List available tools
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "method": "tools/list", "id": 1}' \
+  http://localhost:8080/
+
+# Call the echo tool
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "echo", "arguments": {"message": "Hello World!"}}, "id": 2}' \
+  http://localhost:8080/
+
+# Store some data
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "add_data", "arguments": {"key": "test", "value": "example"}}, "id": 3}' \
+  http://localhost:8080/
+
+# Retrieve the data
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "get_data", "arguments": {"key": "test"}}, "id": 4}' \
+  http://localhost:8080/
+```
+
+**FastMCP Mode (for Claude Desktop integration):**
+```bash
+# For Claude Desktop, use FastMCP mode
+MCP_TRANSPORT=fastmcp uv run python -c "
+from mcp_router_example import MCPToolRouter
+from mcpnp import UnifiedMCPServer
+router = MCPToolRouter()
+server = UnifiedMCPServer(tool_router=router)
+server.run()
+"
+```
+
+#### Example Usage
+
+```python
+from mcp_router_example import MCPToolRouter
+
+# Create router instance
+router = MCPToolRouter()
+
+# Use the tools
+echo_result = router.call_tool("echo", {"message": "Hello!"})
+router.call_tool("add_data", {"key": "name", "value": "MCPnp"})
+data_result = router.call_tool("get_data", {"key": "name"})
+calc_result = router.call_tool("calculate", {"operation": "add", "a": 5, "b": 3})
+
+# Get available tools
+tools = router.get_available_tools()
+```
+
 ## Development
 
 ### Code Quality Checks
