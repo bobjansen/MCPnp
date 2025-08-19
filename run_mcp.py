@@ -27,6 +27,8 @@ import os
 import sys
 import argparse
 from mcpnp.server import UnifiedMCPServer
+from mcpnp.auth.datastore_sqlite import SQLiteOAuthDatastore
+from mcpnp.auth.datastore_postgresql import PostgreSQLOAuthDatastore
 
 
 def main():
@@ -79,6 +81,18 @@ def main():
 
     # Import after environment is set
 
+    # Create OAuth datastore if needed
+    oauth_datastore = None
+    if args.transport == "oauth" or os.environ.get("MCP_TRANSPORT") == "oauth":
+        if args.backend == "postgresql" and args.db_url:
+            oauth_datastore = PostgreSQLOAuthDatastore(args.db_url)
+        else:
+            # Default to SQLite
+            db_path = args.db_url or "oauth.db"
+            oauth_datastore = SQLiteOAuthDatastore(db_path)
+
+        print(f"  Database: {oauth_datastore.__class__.__name__}")
+
     # Create and run server
     print("Starting MCPnp server:")
     print(f"  Transport: {args.transport}")
@@ -87,7 +101,7 @@ def main():
     print()
 
     try:
-        server = UnifiedMCPServer()
+        server = UnifiedMCPServer(oauth_datastore=oauth_datastore)
         server.run()
     except KeyboardInterrupt:
         print("\nServer stopped by user")
