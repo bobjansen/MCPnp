@@ -167,7 +167,6 @@ class MCPToolRouter:
             else:
                 return {"status": "error", "message": "Invalid operation"}
 
-
             return {
                 "status": "success",
                 "operation": operation,

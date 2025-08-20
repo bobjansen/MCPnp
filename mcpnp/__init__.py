@@ -8,7 +8,15 @@ authentication systems, and user management capabilities.
 from .server.unified_server import UnifiedMCPServer
 from .server.context import MCPContext
 from .auth.user_manager import UserManager
+from .tools.base import MCPToolServer, MCPDataServer, tool
 
 __version__ = "1.0.0"
 
-__all__ = ["UnifiedMCPServer", "MCPContext", "UserManager"]
+__all__ = [
+    "UnifiedMCPServer",
+    "MCPContext",
+    "UserManager",
+    "MCPToolServer",
+    "MCPDataServer",
+    "tool",
+]
