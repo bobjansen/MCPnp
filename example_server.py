@@ -55,9 +55,9 @@ class MyMCPServer(MCPDataServer):
 def main():
     """Run the MCP server."""
     # Set transport mode
-    os.environ['MCP_TRANSPORT'] = 'http'
-    os.environ['MCP_HOST'] = 'localhost'
-    os.environ['MCP_PORT'] = '8000'
+    os.environ["MCP_TRANSPORT"] = "http"
+    os.environ["MCP_HOST"] = "localhost"
+    os.environ["MCP_PORT"] = "8000"
 
     print("Starting MCP Server Example...")
 

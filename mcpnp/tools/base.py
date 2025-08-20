@@ -9,93 +9,97 @@ from datetime import datetime
 
 def tool(name: str, description: str = None):
     """Decorator for registering MCP tools with automatic schema generation.
-    
+
     This is a standalone decorator that can be used directly on methods.
     The metaclass will automatically collect and register these decorated methods.
-    
+
     Args:
         name: Tool name
         description: Tool description (uses docstring if not provided)
-        
+
     Returns:
         Decorator function that marks the method for tool registration
     """
+
     def decorator(func):
         # Mark the function as an MCP tool
-        func._mcp_tool_name = name
-        func._mcp_tool_description = description
+        func.mcp_tool_name = name
+        func.mcp_tool_description = description
         return func
+
     return decorator
 
 
 class MCPToolMeta(type):
     """Metaclass that automatically collects and registers @tool decorated methods."""
-    
+
     def __new__(mcs, name, bases, namespace, **kwargs):
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
-        
+
         # Initialize tool storage
         cls._tools = {}
         cls._tool_schemas = []
-        
+
         # Collect tools from all methods in the class hierarchy
         for attr_name in dir(cls):
             attr = getattr(cls, attr_name)
-            if hasattr(attr, '_mcp_tool_name'):
-                mcs._register_tool(cls, attr, attr._mcp_tool_name, attr._mcp_tool_description)
-        
+            if hasattr(attr, "mcp_tool_name"):
+                mcs._register_tool(
+                    cls, attr, attr.mcp_tool_name, attr.mcp_tool_description
+                )
+
         return cls
-    
-    @staticmethod
+
     def _register_tool(cls, func, tool_name: str, description: str = None):
         """Register a single tool method."""
         # Extract parameter info from function signature
         sig = inspect.signature(func)
-        
+
         properties = {}
         required = []
-        
+
         for param_name, param in sig.parameters.items():
             if param_name != "self":
                 # Map Python types to JSON Schema types
                 param_type = MCPToolMeta._get_json_type(param.annotation)
-                
+
                 properties[param_name] = {
                     "type": param_type,
-                    "description": f"{param_name} parameter"
+                    "description": f"{param_name} parameter",
                 }
-                
+
                 # Check if parameter is required (no default value)
                 if param.default == param.empty:
                     required.append(param_name)
-        
+
         # Register the tool
         cls._tools[tool_name] = func
-        cls._tool_schemas.append({
-            "name": tool_name,
-            "description": description or func.__doc__ or f"Execute {tool_name}",
-            "inputSchema": {
-                "type": "object",
-                "properties": properties,
-                "required": required
+        cls._tool_schemas.append(
+            {
+                "name": tool_name,
+                "description": description or func.__doc__ or f"Execute {tool_name}",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required,
+                },
             }
-        })
-    
+        )
+
     @staticmethod
     def _get_json_type(python_type) -> str:
         """Convert Python type annotations to JSON Schema types."""
         if python_type == int:
             return "number"
-        elif python_type == float:
+        if python_type == float:
             return "number"
-        elif python_type == bool:
+        if python_type == bool:
             return "boolean"
-        elif python_type == list:
+        if python_type == list:
             return "array"
-        elif python_type == dict:
+        if python_type == dict:
             return "object"
-        else:
-            return "string"
+        return "string"
 
 
 class MCPToolServer(metaclass=MCPToolMeta):
@@ -106,12 +110,12 @@ class MCPToolServer(metaclass=MCPToolMeta):
 
     Example:
         from mcpnp import MCPToolServer, tool
-        
+
         class MyServer(MCPToolServer):
             @tool("greet", "Greet someone")
             def greet(self, name: str) -> str:
                 return f"Hello, {name}!"
-            
+
             @tool("add", "Add numbers")
             def add(self, a: float, b: float) -> float:
                 return a + b
@@ -150,12 +154,11 @@ class MCPToolServer(metaclass=MCPToolMeta):
             # Ensure result is in proper MCP format
             if isinstance(result, dict) and "status" in result:
                 return result
-            else:
-                return {
-                    "status": "success",
-                    "result": result,
-                    "timestamp": datetime.now().isoformat(),
-                }
+            return {
+                "status": "success",
+                "result": result,
+                "timestamp": datetime.now().isoformat(),
+            }
 
         except Exception as e:
             return {"status": "error", "message": f"Tool execution failed: {str(e)}"}

@@ -102,8 +102,6 @@ def main():
     pytest_cmd = ["uv", "run", "pytest", "tests/"]
     if quick_mode:
         pytest_cmd.extend(["--tb=line", "-q", "-x"])  # Stop on first failure
-    else:
-        pytest_cmd.extend(["--tb=short", "-v"])
 
     results["pytest"] = run_command(
         pytest_cmd, "Pytest Test Execution" + (" (Quick)" if quick_mode else "")
