@@ -70,7 +70,7 @@ mcpnp-server --help
 
 2. **Start an HTTP server:**
    ```bash
-   mcpnp server http --port 8080
+   mcpnp server http --port 8000
    ```
 
 3. **Start an OAuth multi-user server:**

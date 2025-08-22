@@ -38,7 +38,7 @@ server.run(mode="local")
 ### HTTP REST API
 For web applications and API integration:
 ```python
-server.run(mode="http", port=8080)
+server.run(mode="http", port=8000)
 ```
 
 ### OAuth Multi-User
@@ -117,26 +117,26 @@ unified_server.run()
 # List available tools
 curl -X POST -H "Content-Type: application/json" \
   -d '{"jsonrpc": "2.0", "method": "tools/list", "id": 1}' \
-  http://localhost:8084/
+  http://localhost:8000/
 
 # Call the greet tool
 curl -X POST -H "Content-Type: application/json" \
   -d '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "greet", "arguments": {"name": "World"}}, "id": 2}' \
-  http://localhost:8084/
+  http://localhost:8000/
 
 # Use the add tool
 curl -X POST -H "Content-Type: application/json" \
   -d '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "add", "arguments": {"a": 15, "b": 25}}, "id": 3}' \
-  http://localhost:8084/
+  http://localhost:8000/
 
 # Store and retrieve data
 curl -X POST -H "Content-Type: application/json" \
   -d '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "store", "arguments": {"key": "test", "value": "example"}}, "id": 4}' \
-  http://localhost:8084/
+  http://localhost:8000/
 
 curl -X POST -H "Content-Type: application/json" \
   -d '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "retrieve", "arguments": {"key": "test"}}, "id": 5}' \
-  http://localhost:8084/
+  http://localhost:8000/
 ```
 
 **FastMCP Mode (for Claude Desktop integration):**

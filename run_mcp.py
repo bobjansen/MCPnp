@@ -19,7 +19,7 @@ Options:
 
 Examples:
     python run_mcp.py                          # FastMCP local mode
-    python run_mcp.py http --port 8080         # HTTP server on port 8080
+    python run_mcp.py http --port 8000         # HTTP server on port 8000
     python run_mcp.py oauth --multiuser        # OAuth multi-user server
 """
 

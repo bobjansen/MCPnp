@@ -214,7 +214,7 @@ MCP_TRANSPORT=fastmcp MCP_MODE=local uv run python run_mcp.py
 
 **HTTP Server:**
 ```bash
-MCP_TRANSPORT=http MCP_MODE=remote MCP_PORT=8080 uv run python run_mcp.py
+MCP_TRANSPORT=http MCP_MODE=remote MCP_PORT=8000 uv run python run_mcp.py
 ```
 
 **OAuth Multi-user:**

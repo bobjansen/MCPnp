@@ -75,14 +75,14 @@ class TestMCPServerStartup:
         os.environ["MCP_TRANSPORT"] = "http"
         os.environ["MCP_MODE"] = "local"  # Changed from "remote" to "local"
         os.environ["MCP_HOST"] = "127.0.0.1"
-        os.environ["MCP_PORT"] = "8080"
+        os.environ["MCP_PORT"] = "8000"
 
         server = UnifiedMCPServer()
 
         assert server.transport == "http"
         assert server.auth_mode == "local"  # Changed from "remote" to "local"
         assert server.host == "127.0.0.1"
-        assert server.port == 8080
+        assert server.port == 8000
         assert server.app is not None
         assert server.mcp is None
         # Security is only set up for OAuth mode, not HTTP local mode
