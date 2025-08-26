@@ -13,7 +13,7 @@ include run_mcp.py
 include check.py
 
 # Include templates and static files
-recursive-include mcpnp/templates *.html
+recursive-include mcpnp/templates *.py
 recursive-include mcpnp/static *.css *.js *.png *.jpg *.svg
 
 # Include test files for reference
