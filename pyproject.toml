@@ -57,7 +57,7 @@ postgresql = "mcpnp.backends.postgresql:PostgreSQLDataManager"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
-python_classes = "Test*" 
+python_classes = "Test*"
 python_functions = "test_*"
 addopts = "-v --tb=short"
 
@@ -76,7 +76,7 @@ target-version = "py312"
 # Exclude a variety of commonly ignored directories.
 exclude = [
     ".bzr",
-    ".direnv", 
+    ".direnv",
     ".eggs",
     ".git",
     ".git-rewrite",
@@ -102,7 +102,7 @@ exclude = [
 # Enable Pyflakes `E` and `F` codes by default
 select = [
     "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings  
+    "W",   # pycodestyle warnings
     "F",   # Pyflakes
     "UP",  # pyupgrade
     "B",   # flake8-bugbear
@@ -157,8 +157,8 @@ ignore = [
     # Import-related (handled by other tools or acceptable for our use case)
     "F401",    # imported but unused (acceptable in __init__.py files)
     "F403",    # star imports (sometimes needed for re-exports)
-    
-    # Docstring requirements (we have good docstrings where needed) 
+
+    # Docstring requirements (we have good docstrings where needed)
     "D100",    # Missing docstring in public module
     "D101",    # Missing docstring in public class
     "D102",    # Missing docstring in public method
@@ -168,12 +168,12 @@ ignore = [
     "D107",    # Missing docstring in __init__
     "D203",    # 1 blank line required before class docstring (conflicts with D211)
     "D213",    # Multi-line docstring summary should start at the second line (conflicts with D212)
-    
+
     # Style preferences and formatting (handled by Black)
     "E501",    # Line too long (handled by Black)
     "COM812",  # Missing trailing comma (conflicts with Black formatter)
     "ISC001",  # Implicit string concatenation (conflicts with Black)
-    
+
     # MCP server specific - these are common in protocol implementations
     "PLR0913", # Too many arguments to function call (acceptable for MCP tools)
     "PLR0912", # Too many branches (acceptable for protocol handling)
@@ -183,24 +183,24 @@ ignore = [
     "ARG002",  # Unused method argument (common in overrides)
     "FBT001",  # Boolean positional arg in function definition
     "FBT002",  # Boolean default positional argument in function definition
-    
+
     # Complexity warnings that are reasonable for MCP servers
     "PLR0911", # Too many return statements (acceptable for routing functions)
     "C901",    # Function is too complex (acceptable for protocol handlers)
-    
-    # Logging format strings (we use f-strings intentionally) 
+
+    # Logging format strings (we use f-strings intentionally)
     "G202",    # Logging .format() used
     "G201",    # Use lazy % formatting in logging functions
-    
+
     # Exception handling (broad exceptions are sometimes appropriate)
     "BLE001",  # Do not catch blind exception
     "TRY003",  # Avoid specifying long messages outside the exception class
     "EM101",   # Exception must not use a string literal, assign to variable first
     "EM102",   # Exception must not use an f-string literal
-    
+
     # Print statements (acceptable in CLI tools and examples)
     "T201",    # print found (acceptable in CLI applications)
-    
+
     # Development/testing specific
     "S101",    # Use of assert detected (acceptable in tests)
     "S105",    # Possible hardcoded password (false positives on OAuth token types)
@@ -210,9 +210,9 @@ ignore = [
     "D417",    # Missing argument descriptions in the docstring
     "PLC0415", # Import outside toplevel (acceptable for conditional imports)
     "TRY301",  # Abstract raise to inner function (acceptable for straightforward error handling)
-    
+
     # Code style preferences that are acceptable
-    "RET504",  # Unnecessary variable assignment before return statement  
+    "RET504",  # Unnecessary variable assignment before return statement
     "SIM108",  # Use ternary operator instead of if-else-block
     "UP007",   # Use | for union types (not available in Python 3.9)
     "FA100",   # Future annotations not required for Python 3.12+
@@ -221,11 +221,11 @@ ignore = [
     "D415",    # First line should end with punctuation (acceptable for tool names)
     "UP035",   # Deprecated typing imports (transitional - will fix gradually)
     "RUF013",  # Implicit Optional (acceptable in tests)
-    
+
     # FastAPI and web framework specific
     "B904",    # Use raise from to specify exception cause (not always needed)
     "S104",    # Possible binding to all interfaces (acceptable for development servers)
-    
+
     # Pathlib usage (os.environ is acceptable)
     "PTH109",  # os.getcwd() should be replaced by Path.cwd()
     "PTH123",  # open() should be replaced by Path.open()
