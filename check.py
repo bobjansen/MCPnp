@@ -88,7 +88,15 @@ def main():
     )
 
     # 2. Ruff Analysis
-    ruff_targets = ["mcpnp/", "tests/", "check.py", "example_server.py", "run_mcp.py"]
+    ruff_targets = [
+        "mcpnp/",
+        "tests/",
+        "example_server.py",
+        "mcp_router_example.py",
+        "mcp_tool_router.py",
+        "run_mcp.py",
+        "check.py",
+    ]
     if quick_mode:
         ruff_targets = ["mcpnp/"]  # Skip tests in quick mode
 

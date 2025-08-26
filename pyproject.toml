@@ -204,6 +204,7 @@ ignore = [
     # Development/testing specific
     "S101",    # Use of assert detected (acceptable in tests)
     "S105",    # Possible hardcoded password (false positives on OAuth token types)
+    "S602",    # subprocess call with shell=True: (acceptable in CLI tools)
     "S603",    # subprocess call: check for execution of untrusted input (acceptable in CLI tools)
     "PLW2901", # for loop variable overwritten by assignment target
     "B008",    # Do not perform function calls in argument defaults (needed for dataclasses)

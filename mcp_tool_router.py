@@ -1,10 +1,8 @@
-"""
-MCP Tool Router - Stub implementation for testing
-"""
+"""MCP Tool Router - Stub implementation for testing"""
 
 import logging
 import traceback
-from typing import Dict, Any, Callable
+from typing import Any, Callable, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -21,21 +19,21 @@ def log_tool_error(error: Exception, tool_name: str, context: str = ""):
     """Log tool error with full traceback."""
     try:
         tb_str = traceback.format_exc()
-        error_msg = f"""Error in tool '{tool_name}' {context}: {str(error)}
+        error_msg = f"""Error in tool '{tool_name}' {context}: {error!s}
 
 Full traceback:
 {tb_str}"""
         logger.error(error_msg)
-    except Exception as log_error:
-        logger.error("Failed to log tool error: %s", log_error)
-        logger.error("Original error in %s: %s", tool_name, error)
+    except Exception:
+        logger.exception("Failed to log tool error")
+        logger.exception("Original error in %s: %s", tool_name, error)
 
 
 class MCPToolRouter:
     """Routes MCP tool calls to appropriate test implementations."""
 
     def __init__(self):
-        self.tools: Dict[str, Callable] = {}
+        self.tools: dict[str, Callable] = {}
         self.test_data = {
             "users": {"test_user": {"name": "Test User", "email": "test@example.com"}},
             "items": {"apple": 10, "banana": 5, "orange": 3},
@@ -64,8 +62,8 @@ class MCPToolRouter:
         }
 
     def call_tool(
-        self, tool_name: str, arguments: Dict[str, Any], manager=None
-    ) -> Dict[str, Any]:
+        self, tool_name: str, arguments: dict[str, Any], manager=None
+    ) -> dict[str, Any]:
         """Route tool call to appropriate test implementation."""
         if tool_name not in self.tools:
             return {"status": "error", "message": f"Unknown tool: {tool_name}"}
@@ -74,7 +72,7 @@ class MCPToolRouter:
             return self.tools[tool_name](arguments, manager)
         except Exception as e:
             log_tool_error(e, tool_name, "during execution")
-            return {"status": "error", "message": f"Tool execution failed: {str(e)}"}
+            return {"status": "error", "message": f"Tool execution failed: {e!s}"}
 
     def get_available_tools(self) -> list:
         """Get list of available test tools."""
@@ -263,7 +261,7 @@ class MCPToolRouter:
         ]
 
     # Tool implementations
-    def _ping(self, arguments: Dict[str, Any], manager=None) -> Dict[str, Any]:
+    def _ping(self, arguments: dict[str, Any], manager=None) -> dict[str, Any]:
         """Simple ping test."""
         return {
             "status": "success",
@@ -271,18 +269,18 @@ class MCPToolRouter:
             "timestamp": "2024-01-01T00:00:00Z",
         }
 
-    def _echo(self, arguments: Dict[str, Any], manager=None) -> Dict[str, Any]:
+    def _echo(self, arguments: dict[str, Any], manager=None) -> dict[str, Any]:
         """Echo back the provided message."""
         message = arguments.get("message", "")
         return {"status": "success", "echo": message, "length": len(message)}
 
-    def _get_counter(self, arguments: Dict[str, Any], manager=None) -> Dict[str, Any]:
+    def _get_counter(self, arguments: dict[str, Any], manager=None) -> dict[str, Any]:
         """Get current counter value."""
         return {"status": "success", "counter": self.test_data["counter"]}
 
     def _increment_counter(
-        self, arguments: Dict[str, Any], manager=None
-    ) -> Dict[str, Any]:
+        self, arguments: dict[str, Any], manager=None
+    ) -> dict[str, Any]:
         """Increment counter by specified amount."""
         amount = arguments.get("amount", 1)
         self.test_data["counter"] += amount
@@ -292,7 +290,7 @@ class MCPToolRouter:
             "counter": self.test_data["counter"],
         }
 
-    def _reset_counter(self, arguments: Dict[str, Any], manager=None) -> Dict[str, Any]:
+    def _reset_counter(self, arguments: dict[str, Any], manager=None) -> dict[str, Any]:
         """Reset counter to zero."""
         old_value = self.test_data["counter"]
         self.test_data["counter"] = 0
@@ -302,7 +300,7 @@ class MCPToolRouter:
             "counter": 0,
         }
 
-    def _add_item(self, arguments: Dict[str, Any], manager=None) -> Dict[str, Any]:
+    def _add_item(self, arguments: dict[str, Any], manager=None) -> dict[str, Any]:
         """Add item with quantity."""
         name = arguments.get("name")
         quantity = arguments.get("quantity", 1)
@@ -324,7 +322,7 @@ class MCPToolRouter:
             "quantity": self.test_data["items"][name],
         }
 
-    def _remove_item(self, arguments: Dict[str, Any], manager=None) -> Dict[str, Any]:
+    def _remove_item(self, arguments: dict[str, Any], manager=None) -> dict[str, Any]:
         """Remove quantity from item."""
         name = arguments.get("name")
         quantity = arguments.get("quantity", 1)
@@ -352,7 +350,7 @@ class MCPToolRouter:
             "remaining": self.test_data["items"].get(name, 0),
         }
 
-    def _list_items(self, arguments: Dict[str, Any], manager=None) -> Dict[str, Any]:
+    def _list_items(self, arguments: dict[str, Any], manager=None) -> dict[str, Any]:
         """List all items and quantities."""
         return {
             "status": "success",
@@ -360,7 +358,7 @@ class MCPToolRouter:
             "total_items": len(self.test_data["items"]),
         }
 
-    def _get_user(self, arguments: Dict[str, Any], manager=None) -> Dict[str, Any]:
+    def _get_user(self, arguments: dict[str, Any], manager=None) -> dict[str, Any]:
         """Get user information."""
         username = arguments.get("username")
 
@@ -376,7 +374,7 @@ class MCPToolRouter:
             "username": username,
         }
 
-    def _update_user(self, arguments: Dict[str, Any], manager=None) -> Dict[str, Any]:
+    def _update_user(self, arguments: dict[str, Any], manager=None) -> dict[str, Any]:
         """Update user information."""
         username = arguments.get("username")
         name = arguments.get("name")
@@ -406,8 +404,8 @@ class MCPToolRouter:
         }
 
     def _simulate_error(
-        self, arguments: Dict[str, Any], manager=None
-    ) -> Dict[str, Any]:
+        self, arguments: dict[str, Any], manager=None
+    ) -> dict[str, Any]:
         """Simulate an error for testing."""
         error_type = arguments.get("error_type", "RuntimeError")
 
@@ -418,8 +416,8 @@ class MCPToolRouter:
         raise RuntimeError("Simulated RuntimeError for testing")
 
     def _validate_params(
-        self, arguments: Dict[str, Any], manager=None
-    ) -> Dict[str, Any]:
+        self, arguments: dict[str, Any], manager=None
+    ) -> dict[str, Any]:
         """Test parameter validation."""
         required_param = arguments.get("required_param")
         optional_param = arguments.get("optional_param")
@@ -441,8 +439,8 @@ class MCPToolRouter:
         return result
 
     def _get_user_profile(
-        self, arguments: Dict[str, Any], manager=None
-    ) -> Dict[str, Any]:
+        self, arguments: dict[str, Any], manager=None
+    ) -> dict[str, Any]:
         """Get authenticated user profile (simulates authentication requirement)."""
         if manager is None:
             return {
@@ -478,8 +476,8 @@ class MCPToolRouter:
         return {"status": "success", "profile": profile, "authenticated": True}
 
     def _get_protected_data(
-        self, arguments: Dict[str, Any], manager=None
-    ) -> Dict[str, Any]:
+        self, arguments: dict[str, Any], manager=None
+    ) -> dict[str, Any]:
         """Get protected data specific to authenticated user."""
         if manager is None:
             return {
@@ -517,7 +515,7 @@ class MCPToolRouter:
             "authenticated": True,
         }
 
-    def _admin_status(self, arguments: Dict[str, Any], manager=None) -> Dict[str, Any]:
+    def _admin_status(self, arguments: dict[str, Any], manager=None) -> dict[str, Any]:
         """Check admin status of authenticated user."""
         if manager is None:
             return {

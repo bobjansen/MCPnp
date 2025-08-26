@@ -1,10 +1,8 @@
-"""
-Simple MCP Tool Router Example - Self-contained and general purpose
-"""
+"""Simple MCP Tool Router Example - Self-contained and general purpose"""
 
 import logging
-from typing import Dict, Any, List
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +13,7 @@ class MCPToolRouter:
     def __init__(self):
         self.data_store = {}  # Simple in-memory storage
 
-    def get_available_tools(self) -> List[Dict[str, Any]]:
+    def get_available_tools(self) -> list[dict[str, Any]]:
         """Return list of available tools with their schemas."""
         return [
             {
@@ -76,8 +74,8 @@ class MCPToolRouter:
         ]
 
     def call_tool(
-        self, tool_name: str, arguments: Dict[str, Any], manager=None
-    ) -> Dict[str, Any]:
+        self, tool_name: str, arguments: dict[str, Any], manager=None
+    ) -> dict[str, Any]:
         """Route tool call to appropriate implementation."""
         try:
             if tool_name == "echo":
@@ -92,19 +90,19 @@ class MCPToolRouter:
                 return self._calculate(arguments)
             return {"status": "error", "message": f"Unknown tool: {tool_name}"}
         except Exception as e:
-            logger.error(f"Error in tool '{tool_name}': {str(e)}")
-            return {"status": "error", "message": f"Tool execution failed: {str(e)}"}
+            logger.exception("Error in tool '%s'", tool_name)
+            return {"status": "error", "message": f"Tool execution failed: {e!s}"}
 
-    def _echo(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    def _echo(self, arguments: dict[str, Any]) -> dict[str, Any]:
         """Echo back the provided message."""
         message = arguments.get("message", "")
         return {
             "status": "success",
             "message": f"Echo: {message}",
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
-    def _add_data(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    def _add_data(self, arguments: dict[str, Any]) -> dict[str, Any]:
         """Store a key-value pair."""
         key = arguments.get("key")
         value = arguments.get("value")
@@ -112,7 +110,10 @@ class MCPToolRouter:
         if not key or not value:
             return {"status": "error", "message": "Both key and value are required"}
 
-        self.data_store[key] = {"value": value, "created": datetime.now().isoformat()}
+        self.data_store[key] = {
+            "value": value,
+            "created": datetime.now(UTC).isoformat(),
+        }
 
         return {
             "status": "success",
@@ -121,7 +122,7 @@ class MCPToolRouter:
             "value": value,
         }
 
-    def _get_data(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    def _get_data(self, arguments: dict[str, Any]) -> dict[str, Any]:
         """Retrieve a value by key."""
         key = arguments.get("key")
 
@@ -139,12 +140,12 @@ class MCPToolRouter:
             "created": data["created"],
         }
 
-    def _list_data(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    def _list_data(self, arguments: dict[str, Any]) -> dict[str, Any]:
         """List all stored keys."""
         keys = list(self.data_store.keys())
         return {"status": "success", "keys": keys, "count": len(keys)}
 
-    def _calculate(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    def _calculate(self, arguments: dict[str, Any]) -> dict[str, Any]:
         """Perform basic arithmetic operations."""
         operation = arguments.get("operation")
         a = arguments.get("a")
@@ -175,7 +176,7 @@ class MCPToolRouter:
                 "result": result,
             }
         except Exception as e:
-            return {"status": "error", "message": f"Calculation failed: {str(e)}"}
+            return {"status": "error", "message": f"Calculation failed: {e!s}"}
 
 
 def main():

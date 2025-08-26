@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Build script for MCPnp package.
+"""Build script for MCPnp package.
 
 This script builds the package for distribution.
 """

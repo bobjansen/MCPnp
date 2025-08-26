@@ -79,7 +79,7 @@ except KeyboardInterrupt:
         ) as process:
 
             # Let it run briefly then stop
-            time.sleep(1)
+            time.sleep(0.3)
             process.terminate()
             _, stderr = process.communicate(timeout=5)
 
