@@ -1,11 +1,9 @@
-"""
-OAuth flow handlers - Centralized OAuth logic to reduce duplication.
-"""
+"""OAuth flow handlers - Centralized OAuth logic to reduce duplication."""
 
 import logging
 import time
-from typing import Optional
-from urllib.parse import urlencode, quote
+from urllib.parse import quote, urlencode
+
 from fastapi import HTTPException
 from fastapi.responses import RedirectResponse
 
@@ -61,7 +59,7 @@ class OAuthFlowHandler:
         return auth_code
 
     def create_success_redirect(
-        self, redirect_uri: str, auth_code: str, state: Optional[str] = None
+        self, redirect_uri: str, auth_code: str, state: str | None = None
     ) -> RedirectResponse:
         """Create a successful OAuth redirect response."""
         params = {"code": auth_code}
@@ -81,7 +79,7 @@ class OAuthFlowHandler:
         redirect_uri: str,
         error: str,
         error_description: str,
-        state: Optional[str] = None,
+        state: str | None = None,
     ) -> RedirectResponse:
         """Create an error OAuth redirect response."""
         error_params = {"error": error, "error_description": error_description}
@@ -117,7 +115,7 @@ class OAuthFlowHandler:
         return success
 
     def validate_oauth_request(
-        self, client_id: str, redirect_uri: str, code_challenge: Optional[str] = None
+        self, client_id: str, redirect_uri: str, code_challenge: str | None = None
     ) -> None:
         """Validate OAuth authorization request parameters."""
         # Validate client
@@ -176,7 +174,7 @@ class OAuthFlowHandler:
         self,
         username: str,
         password: str,
-        email: Optional[str],
+        email: str | None,
         client_id: str,
         redirect_uri: str,
         scope: str,

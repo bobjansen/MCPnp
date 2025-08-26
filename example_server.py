@@ -1,5 +1,4 @@
-"""
-MCP Server Example - Comprehensive example with command line interface.
+"""MCP Server Example - Comprehensive example with command line interface.
 
 This example demonstrates how to create an MCP server using the decorator-based
 approach with full command line configuration support.
@@ -8,8 +7,8 @@ approach with full command line configuration support.
 import argparse
 import os
 import sys
-from typing import List
-from mcpnp import UnifiedMCPServer, MCPDataServer, tool
+
+from mcpnp import MCPDataServer, UnifiedMCPServer, tool
 from mcpnp.auth.datastore_postgresql import PostgreSQLOAuthDatastore
 from mcpnp.auth.datastore_sqlite import SQLiteOAuthDatastore
 
@@ -44,10 +43,10 @@ class MyMCPServer(MCPDataServer):
         try:
             return self.get_data(key)
         except KeyError as e:
-            return f"Error: {str(e)}"
+            return f"Error: {e!s}"
 
     @tool("list_keys", "List all stored keys")
-    def list_stored_keys(self) -> List[str]:
+    def list_stored_keys(self) -> list[str]:
         """List all stored keys."""
         return self.list_keys()
 
@@ -186,12 +185,11 @@ def configure_environment(args) -> None:
                 "Warning: Multi-user mode requires OAuth transport, switching to OAuth"
             )
             os.environ["MCP_TRANSPORT"] = "oauth"
-    else:
-        # Default authentication mode based on transport
-        if args.transport in ["fastmcp", "http"]:
-            os.environ["MCP_MODE"] = "local"
-        elif args.transport == "oauth":
-            os.environ["MCP_MODE"] = "multiuser"
+    # Default authentication mode based on transport
+    elif args.transport in ["fastmcp", "http"]:
+        os.environ["MCP_MODE"] = "local"
+    elif args.transport == "oauth":
+        os.environ["MCP_MODE"] = "multiuser"
 
     # Set OAuth configuration
     if args.public_url:
@@ -211,12 +209,14 @@ def configure_environment(args) -> None:
 def validate_arguments(args) -> bool:
     """Validate command line arguments and show helpful error messages."""
     # Validate OAuth requirements
-    if args.transport == "oauth":
-        if args.multiuser and not args.public_url and args.host == "localhost":
-            print(
-                "Warning: OAuth mode with localhost may not work with external clients."
-            )
-            print("Consider using --public-url for production deployments.")
+    if (
+        args.transport == "oauth"
+        and args.multiuser
+        and not args.public_url
+        and args.host == "localhost"
+    ):
+        print("Warning: OAuth mode with localhost may not work with external clients.")
+        print("Consider using --public-url for production deployments.")
 
     # Validate database URL for PostgreSQL
     if args.database == "postgresql" and not args.db_url:

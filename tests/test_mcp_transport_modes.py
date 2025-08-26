@@ -6,13 +6,13 @@ Tests FastMCP (stdio), HTTP REST, Server-Sent Events, and OAuth 2.1 transports.
 import os
 import uuid
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-from fastapi.testclient import TestClient
-import pytest
+from unittest.mock import MagicMock, patch
 
+import pytest
+from fastapi.testclient import TestClient
+
+from mcp_tool_router import MCPToolRouter, MockUserManager
 from mcpnp.server import UnifiedMCPServer
-from mcp_tool_router import MockUserManager
-from mcp_tool_router import MCPToolRouter
 
 from .conftest import cleanup_test_environment
 
@@ -73,7 +73,7 @@ class TestMCPTransportModes:
 
         # Should have basic routes
         assert any("/health" in route for route in routes)
-        assert any("/" == route for route in routes)
+        assert any(route == "/" for route in routes)
         assert len(routes) >= len(
             required_routes
         )  # Should have at least our required routes
@@ -307,7 +307,7 @@ class TestMCPTransportModes:
         for transport, mode in test_configs:
             # Clean environment
             for key in list(os.environ.keys()):
-                if key.startswith(("MCP_")):
+                if key.startswith("MCP_"):
                     del os.environ[key]
 
             # Set test configuration
@@ -323,7 +323,7 @@ class TestMCPTransportModes:
 
         # Test OAuth separately with required datastore
         for key in list(os.environ.keys()):
-            if key.startswith(("MCP_")):
+            if key.startswith("MCP_"):
                 del os.environ[key]
 
         os.environ["MCP_TRANSPORT"] = "oauth"

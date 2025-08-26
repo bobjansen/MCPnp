@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
-"""
-Code Quality Check Script for MCPnp
+"""Code Quality Check Script for MCPnp
 
 This script runs comprehensive code quality checks including:
 - Black formatting validation
-- Pylint code analysis
+- Ruff linting and code analysis
 - Pytest test execution
 
 Usage:
     python check.py [--fix] [--quick]
 
 Options:
-    --fix    Apply black formatting fixes automatically
+    --fix    Apply black formatting and ruff fixes automatically
     --quick  Run quick checks (skip some slower tests)
 """
 
@@ -88,14 +87,20 @@ def main():
         "Black Code Formatting" + (" (Fix Mode)" if fix_mode else " (Check Mode)"),
     )
 
-    # 2. Pylint Analysis
-    pylint_targets = ["mcpnp/", "tests/", "run_mcp.py", "check.py"]
+    # 2. Ruff Analysis
+    ruff_targets = ["mcpnp/", "tests/", "check.py", "example_server.py", "run_mcp.py"]
     if quick_mode:
-        pylint_targets = ["mcpnp/"]  # Skip tests in quick mode
+        ruff_targets = ["mcpnp/"]  # Skip tests in quick mode
 
-    results["pylint"] = run_command(
-        ["uv", "run", "pylint"] + pylint_targets + ["--rcfile=.pylintrc"],
-        "Pylint Code Analysis" + (" (Quick)" if quick_mode else ""),
+    ruff_cmd = ["uv", "run", "ruff", "check"] + ruff_targets
+    if fix_mode:
+        ruff_cmd.append("--fix")
+
+    results["ruff"] = run_command(
+        ruff_cmd,
+        "Ruff Code Analysis"
+        + (" (Fix Mode)" if fix_mode else "")
+        + (" (Quick)" if quick_mode else ""),
     )
 
     # 3. Pytest Test Execution

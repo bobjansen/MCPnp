@@ -2,7 +2,7 @@
 Tests for the example server using decorator-based tools.
 """
 
-from mcpnp import UnifiedMCPServer, MCPDataServer, tool
+from mcpnp import MCPDataServer, UnifiedMCPServer, tool
 
 
 class ExampleMCPServer(MCPDataServer):
@@ -35,7 +35,7 @@ class ExampleMCPServer(MCPDataServer):
         try:
             return self.get_data(key)
         except KeyError as e:
-            return f"Error: {str(e)}"
+            return f"Error: {e!s}"
 
     @tool("list_keys", "List all stored keys")
     def list_stored_keys(self) -> list:

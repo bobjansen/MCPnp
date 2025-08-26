@@ -2,9 +2,11 @@
 Tests for MCP tool decorators and base classes.
 """
 
+from typing import Any
+
 import pytest
-from typing import List, Dict, Any
-from mcpnp.tools.base import MCPToolServer, MCPDataServer, tool
+
+from mcpnp.tools.base import MCPDataServer, MCPToolServer, tool
 
 
 class TestToolDecorator:
@@ -180,7 +182,7 @@ class TestMCPToolServer:
 
         class StatusServer(MCPToolServer):
             @tool("status_tool", "Tool that returns status dict")
-            def status_tool(self) -> Dict[str, Any]:
+            def status_tool(self) -> dict[str, Any]:
                 return {"status": "custom", "data": "test", "code": 200}
 
         server = StatusServer()
@@ -237,7 +239,7 @@ class TestMCPDataServer:
                     return f"Key {key} not found"
 
             @tool("list_items", "List all items")
-            def list_items(self) -> List[str]:
+            def list_items(self) -> list[str]:
                 return self.list_keys()
 
         server = DataTestServer()

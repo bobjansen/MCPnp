@@ -2,7 +2,7 @@
 Tests for integration of decorator-based tools with UnifiedMCPServer.
 """
 
-from mcpnp import UnifiedMCPServer, MCPToolServer, MCPDataServer, tool
+from mcpnp import MCPDataServer, MCPToolServer, UnifiedMCPServer, tool
 
 
 class TestUnifiedServerIntegration:

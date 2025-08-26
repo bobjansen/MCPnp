@@ -1,4 +1,4 @@
-""" Generic Unified MCP Server - Transport and authentication framework.
+"""Generic Unified MCP Server - Transport and authentication framework.
 
 A generic MCP server that can be configured with different tool routers
 and data managers to work with any type of application.
@@ -18,24 +18,26 @@ Environment Configuration:
 """
 
 import asyncio
-import os
-import sys
 import json
 import logging
+import os
 import pathlib
+import sys
 import traceback
-from typing import Any, Callable, Dict, Optional
-from datetime import datetime, date
+from collections.abc import Callable
+from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import Any, Optional
+
 from .context import MCPContext
 
 # Import all possible transport modules
 try:
     from fastapi import FastAPI, Form, Request
-    from fastapi.security import HTTPBearer
     from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+    from fastapi.security import HTTPBearer
     from fastapi.staticfiles import StaticFiles
-    from fastapi.responses import JSONResponse, HTMLResponse, StreamingResponse
 except ImportError:
     FastAPI = None
 
@@ -45,13 +47,13 @@ except ImportError:
     FastMCP = None
 
 try:
-    from ..auth.oauth_server import OAuthServer
-    from ..auth.oauth_handlers import OAuthFlowHandler
-    from ..auth.datastore import OAuthDatastore
-    from ..templates.oauth_templates import (
+    from mcpnp.auth.datastore import OAuthDatastore
+    from mcpnp.auth.oauth_handlers import OAuthFlowHandler
+    from mcpnp.auth.oauth_server import OAuthServer
+    from mcpnp.templates.oauth_templates import (
+        generate_error_page,
         generate_login_form,
         generate_register_form,
-        generate_error_page,
     )
 except ImportError:
     OAuthServer = None
@@ -107,10 +109,10 @@ def log_error_with_traceback(error: Exception, context: str = ""):
     """Log error with full traceback to file."""
     try:
         tb_str = traceback.format_exc()
-        error_msg = f"Error in {context}: {str(error)}\n\nFull traceback:\n{tb_str}"
+        error_msg = f"Error in {context}: {error!s}\n\nFull traceback:\n{tb_str}"
         logger.error(error_msg)
         logger.info("Error details written to: %s", ERROR_LOG_PATH)
-    except (OSError, IOError, PermissionError) as log_error:
+    except (OSError, PermissionError) as log_error:
         # Fallback if logging itself fails
         print(f"Failed to log error: {log_error}", file=sys.stderr)
         print(f"Original error: {error}", file=sys.stderr)
@@ -133,13 +135,12 @@ class UnifiedMCPServer:
     def __init__(
         self,
         tool_router=None,
-        data_manager_factory: Optional[Callable] = None,
-        database_setup_func: Optional[Callable] = None,
+        data_manager_factory: Callable | None = None,
+        database_setup_func: Callable | None = None,
         server_name: str = "Generic MCP Server",
         oauth_datastore: Optional["OAuthDatastore"] = None,
     ):
-        """
-        Initialize the unified MCP server.
+        """Initialize the unified MCP server.
 
         Args:
             tool_router: Tool router instance that handles MCP tool calls
@@ -253,9 +254,8 @@ class UnifiedMCPServer:
 
             self._register_http_endpoints()
 
-    def get_current_user(self, token) -> Optional[str]:
+    def get_current_user(self, token) -> str | None:
         """Extract user from authentication credentials."""
-
         if self.oauth:
             # OAuth mode
             token_data = self.oauth.validate_access_token(token)
@@ -266,16 +266,16 @@ class UnifiedMCPServer:
         return None
 
     def get_user_data_manager(
-        self, user_id: Optional[str] = None
-    ) -> tuple[Optional[str], Optional[Any]]:
+        self, user_id: str | None = None
+    ) -> tuple[str | None, Any | None]:
         """Get authenticated user and their data manager instance."""
         if self.transport == "oauth":
             return self._get_user_data_manager_oauth(user_id)
         return self.context.authenticate_and_get_data_manager()
 
     def _get_user_data_manager_oauth(
-        self, user_id: Optional[str]
-    ) -> tuple[Optional[str], Optional[Any]]:
+        self, user_id: str | None
+    ) -> tuple[str | None, Any | None]:
         """Get user data manager for OAuth mode."""
         if not user_id:
             return None, None
@@ -284,7 +284,7 @@ class UnifiedMCPServer:
         data_manager = self.context.get_data_manager(user_id)
         return user_id, data_manager
 
-    def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         """Call a tool through the router with proper authentication."""
         if not self.tool_router:
             return {"status": "error", "message": "No tool router configured"}
@@ -313,10 +313,10 @@ class UnifiedMCPServer:
 
             users = []
             user_data_dir = os.getenv("USER_DATA_DIR", "user_data")
-            if os.path.exists(user_data_dir):
-                for username in os.listdir(user_data_dir):
-                    user_dir = os.path.join(user_data_dir, username)
-                    if os.path.isdir(user_dir):
+            if Path(user_data_dir).exists():
+                for username in Path(user_data_dir).iterdir():
+                    user_dir = user_data_dir / username
+                    if user_dir.exists():
                         users.append({"username": username})
             return {"status": "success", "users": users}
 
@@ -334,7 +334,7 @@ class UnifiedMCPServer:
             return
 
         # Get available tools from the router
-        available_tools = getattr(self.tool_router, "get_available_tools", lambda: [])()
+        available_tools = getattr(self.tool_router, "get_available_tools", list)()
 
         for tool in available_tools:
             tool_name = tool["name"]
@@ -386,7 +386,7 @@ class UnifiedMCPServer:
             tools = []
             if self.tool_router:
                 available_tools = getattr(
-                    self.tool_router, "get_available_tools", lambda: []
+                    self.tool_router, "get_available_tools", list
                 )()
                 tools = available_tools
 
@@ -427,7 +427,7 @@ class UnifiedMCPServer:
                     tools = []
                     if self.tool_router:
                         available_tools = getattr(
-                            self.tool_router, "get_available_tools", lambda: []
+                            self.tool_router, "get_available_tools", list
                         )()
                         tools = available_tools
 
@@ -506,22 +506,22 @@ class UnifiedMCPServer:
                         },
                     }
 
-                return {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "error": {
-                        "code": -32601,
-                        "message": f"Method not found: {method}",
-                    },
-                }
-
             except (ValueError, TypeError, KeyError, AttributeError) as e:
                 log_error_with_traceback(e, "MCP request handling")
                 return {
                     "jsonrpc": "2.0",
                     "id": data.get("id") if "data" in locals() else None,
-                    "error": {"code": -32603, "message": f"Internal error: {str(e)}"},
+                    "error": {"code": -32603, "message": f"Internal error: {e!s}"},
                 }
+
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32601,
+                    "message": f"Method not found: {method}",
+                },
+            }
 
         # Add SSE endpoint if needed
         if self.transport == "sse":
@@ -538,7 +538,9 @@ class UnifiedMCPServer:
                         # Keep connection alive
                         while True:
                             await asyncio.sleep(30)  # Heartbeat every 30 seconds
-                            yield 'data: {"type": "heartbeat", "timestamp": "' + datetime.now().isoformat() + '"}\n\n'
+                            yield 'data: {"type": "heartbeat", "timestamp": "' + datetime.now(
+                                UTC
+                            ).isoformat() + '"}\n\n'
                     except asyncio.CancelledError:
                         logger.info("SSE connection cancelled")
                         return
@@ -547,7 +549,7 @@ class UnifiedMCPServer:
                         BrokenPipeError,
                     ) as e:
                         log_error_with_traceback(e, "Server-Sent Events")
-                        yield f'data: {{"type": "error", "message": "{str(e)}"}}\n\n'
+                        yield f'data: {{"type": "error", "message": "{e!s}"}}\n\n'
                         return
 
                 return StreamingResponse(
@@ -601,8 +603,8 @@ class UnifiedMCPServer:
             client_id: str,
             redirect_uri: str,
             scope: str = "read write",
-            state: str = None,
-            code_challenge: str = None,
+            state: str | None = None,
+            code_challenge: str | None = None,
             code_challenge_method: str = "S256",
         ):
             """OAuth authorization endpoint."""
@@ -628,7 +630,7 @@ class UnifiedMCPServer:
                 log_error_with_traceback(e, "OAuth authorization")
                 # pylint: disable=line-too-long
                 return HTMLResponse(
-                    content=f"<html><body><h2>Authorization Error</h2><p>{str(e)}</p></body></html>",
+                    content=f"<html><body><h2>Authorization Error</h2><p>{e!s}</p></body></html>",
                     status_code=500,
                 )
 

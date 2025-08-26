@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-MCP Server Launcher - Unified interface for all MCP server modes.
+"""MCP Server Launcher - Unified interface for all MCP server modes.
 
 Usage:
     python run_mcp.py [mode] [options]
@@ -23,16 +22,17 @@ Examples:
     python run_mcp.py oauth --multiuser        # OAuth multi-user server
 """
 
+import argparse
 import os
 import sys
-import argparse
-from mcpnp.server import UnifiedMCPServer
-from mcpnp.auth.datastore_sqlite import SQLiteOAuthDatastore
+
 from mcpnp.auth.datastore_postgresql import PostgreSQLOAuthDatastore
+from mcpnp.auth.datastore_sqlite import SQLiteOAuthDatastore
+from mcpnp.server import UnifiedMCPServer
 
 
 def main():
-    """Run the MCP server"""
+    """Run the MCP server."""
     parser = argparse.ArgumentParser(
         description="MCPnp Unified Server Launcher",
         formatter_class=argparse.RawDescriptionHelpFormatter,

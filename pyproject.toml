@@ -32,6 +32,7 @@ dependencies = [
     "psycopg2-binary>=2.9.0",
     "werkzeug>=2.0.0",
     "flask>=2.0.0",
+    "ruff>=0.12.10",
 ]
 
 [project.optional-dependencies]
@@ -67,7 +68,220 @@ packages = ["mcpnp"]
 line-length = 88
 target-version = ['py312']
 
+[tool.ruff]
+# Set the maximum line length to match Black
+line-length = 88
+target-version = "py312"
+
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv", 
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+
+[tool.ruff.lint]
+# Enable Pyflakes `E` and `F` codes by default
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings  
+    "F",   # Pyflakes
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "I",   # isort
+    "N",   # pep8-naming
+    "D",   # pydocstyle
+    "S",   # flake8-bandit
+    "BLE", # flake8-blind-except
+    "FBT", # flake8-boolean-trap
+    "A",   # flake8-builtins
+    "COM", # flake8-commas
+    "C4",  # flake8-comprehensions
+    "DTZ", # flake8-datetimez
+    "T10", # flake8-debugger
+    "EM",  # flake8-errmsg
+    "EXE", # flake8-executable
+    "FA",  # flake8-future-annotations
+    "ISC", # flake8-implicit-str-concat
+    "ICN", # flake8-import-conventions
+    "G",   # flake8-logging-format
+    "INP", # flake8-no-pep420
+    "PIE", # flake8-pie
+    "T20", # flake8-print
+    "PYI", # flake8-pyi
+    "PT",  # flake8-pytest-style
+    "Q",   # flake8-quotes
+    "RSE", # flake8-raise
+    "RET", # flake8-return
+    "SLF", # flake8-self
+    "SLOT", # flake8-slots
+    "TID", # flake8-tidy-imports
+    "TCH", # flake8-type-checking
+    "INT", # flake8-gettext
+    "ARG", # flake8-unused-arguments
+    "PTH", # flake8-use-pathlib
+    "ERA", # eradicate
+    "PD",  # pandas-vet
+    "PGH", # pygrep-hooks
+    "PL",  # Pylint
+    "TRY", # tryceratops
+    "FLY", # flynt
+    "NPY", # NumPy-specific rules
+    "PERF", # Perflint
+    "FURB", # refurb
+    "LOG", # flake8-logging
+    "RUF", # Ruff-specific rules
+]
+
+# Ignore rules that are too strict for MCP server development or conflict with Black
+ignore = [
+    # Import-related (handled by other tools or acceptable for our use case)
+    "F401",    # imported but unused (acceptable in __init__.py files)
+    "F403",    # star imports (sometimes needed for re-exports)
+    
+    # Docstring requirements (we have good docstrings where needed) 
+    "D100",    # Missing docstring in public module
+    "D101",    # Missing docstring in public class
+    "D102",    # Missing docstring in public method
+    "D103",    # Missing docstring in public function
+    "D104",    # Missing docstring in public package
+    "D105",    # Missing docstring in magic method
+    "D107",    # Missing docstring in __init__
+    "D203",    # 1 blank line required before class docstring (conflicts with D211)
+    "D213",    # Multi-line docstring summary should start at the second line (conflicts with D212)
+    
+    # Style preferences and formatting (handled by Black)
+    "E501",    # Line too long (handled by Black)
+    "COM812",  # Missing trailing comma (conflicts with Black formatter)
+    "ISC001",  # Implicit string concatenation (conflicts with Black)
+    
+    # MCP server specific - these are common in protocol implementations
+    "PLR0913", # Too many arguments to function call (acceptable for MCP tools)
+    "PLR0912", # Too many branches (acceptable for protocol handling)
+    "PLR0915", # Too many statements (acceptable for setup functions)
+    "PLR2004", # Magic value used in comparison (acceptable for protocol constants)
+    "ARG001",  # Unused function argument (common in interface implementations)
+    "ARG002",  # Unused method argument (common in overrides)
+    "FBT001",  # Boolean positional arg in function definition
+    "FBT002",  # Boolean default positional argument in function definition
+    
+    # Complexity warnings that are reasonable for MCP servers
+    "PLR0911", # Too many return statements (acceptable for routing functions)
+    "C901",    # Function is too complex (acceptable for protocol handlers)
+    
+    # Logging format strings (we use f-strings intentionally) 
+    "G202",    # Logging .format() used
+    "G201",    # Use lazy % formatting in logging functions
+    
+    # Exception handling (broad exceptions are sometimes appropriate)
+    "BLE001",  # Do not catch blind exception
+    "TRY003",  # Avoid specifying long messages outside the exception class
+    "EM101",   # Exception must not use a string literal, assign to variable first
+    "EM102",   # Exception must not use an f-string literal
+    
+    # Print statements (acceptable in CLI tools and examples)
+    "T201",    # print found (acceptable in CLI applications)
+    
+    # Development/testing specific
+    "S101",    # Use of assert detected (acceptable in tests)
+    "S105",    # Possible hardcoded password (false positives on OAuth token types)
+    "S603",    # subprocess call: check for execution of untrusted input (acceptable in CLI tools)
+    "PLW2901", # for loop variable overwritten by assignment target
+    "B008",    # Do not perform function calls in argument defaults (needed for dataclasses)
+    "D417",    # Missing argument descriptions in the docstring
+    "PLC0415", # Import outside toplevel (acceptable for conditional imports)
+    "TRY301",  # Abstract raise to inner function (acceptable for straightforward error handling)
+    
+    # Code style preferences that are acceptable
+    "RET504",  # Unnecessary variable assignment before return statement  
+    "SIM108",  # Use ternary operator instead of if-else-block
+    "UP007",   # Use | for union types (not available in Python 3.9)
+    "FA100",   # Future annotations not required for Python 3.12+
+    "TRY300",  # Consider moving statement to else block (acceptable pattern)
+    "RUF005",  # Use unpacking instead of concatenation (acceptable for readability)
+    "D415",    # First line should end with punctuation (acceptable for tool names)
+    "UP035",   # Deprecated typing imports (transitional - will fix gradually)
+    "RUF013",  # Implicit Optional (acceptable in tests)
+    
+    # FastAPI and web framework specific
+    "B904",    # Use raise from to specify exception cause (not always needed)
+    "S104",    # Possible binding to all interfaces (acceptable for development servers)
+    
+    # Pathlib usage (os.environ is acceptable)
+    "PTH109",  # os.getcwd() should be replaced by Path.cwd()
+    "PTH123",  # open() should be replaced by Path.open()
+]
+
+# Allow autofix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+# Tests can use more flexible rules
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "PLR2004", # Magic value used in comparison
+    "S106",    # Possible hardcoded password
+    "S108",    # Probable insecure usage of temp file/directory
+    "ARG001",  # Unused function argument
+    "D",       # pydocstyle (not required in tests)
+    "ANN",     # Missing type annotations (not required in tests)
+    "PT018",   # Assertion complexity (acceptable in tests)
+    "ERA001",  # Commented-out code (acceptable in test files for documentation)
+]
+
+# Example files can be more relaxed
+"**/example*.py" = [
+    "T201",    # print found (expected in examples)
+    "INP001",  # Implicit namespace package (examples don't need __init__.py)
+]
+
+# CLI entry points can use print
+"run_mcp.py" = ["T201"]
+"check.py" = ["T201"]
+
+[tool.ruff.lint.mccabe]
+# Set the maximum complexity to match pylint settings
+max-complexity = 15
+
+[tool.ruff.lint.pydocstyle]
+# Use Google-style docstrings
+convention = "google"
+
+[tool.ruff.lint.isort]
+# Configuration compatible with Black
+split-on-trailing-comma = true
+force-single-line = false
+known-first-party = ["mcpnp"]
+
+[tool.ruff.lint.flake8-quotes]
+# Use double quotes to match Black
+inline-quotes = "double"
+multiline-quotes = "double"
+docstring-quotes = "double"
+
 [dependency-groups]
 dev = [
-    "pylint>=3.3.8",
+    "ruff>=0.8.0",
 ]

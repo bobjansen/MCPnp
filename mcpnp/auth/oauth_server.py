@@ -1,6 +1,6 @@
-"""
-OAuth 2.1 Authorization Server for MCP
-Implements OAuth 2.1 with PKCE for secure authentication
+"""OAuth 2.1 Authorization Server for MCP.
+
+Implements OAuth 2.1 with PKCE for secure authentication.
 """
 
 import base64
@@ -10,8 +10,9 @@ import os
 import re
 import secrets
 import time
-from typing import Dict, Optional
+
 from werkzeug.security import generate_password_hash
+
 from .datastore import OAuthDatastore
 
 logger = logging.getLogger(__name__)
@@ -34,14 +35,14 @@ class OAuthServer:
         self.registration_endpoint = f"{self.base_url}/register"
 
         # Cache for authorization codes and tokens (with database persistence)
-        self.auth_codes: Dict[str, Dict] = {}
-        self.access_tokens: Dict[str, Dict] = {}
-        self.refresh_tokens: Dict[str, Dict] = {}
+        self.auth_codes: dict[str, dict] = {}
+        self.access_tokens: dict[str, dict] = {}
+        self.refresh_tokens: dict[str, dict] = {}
 
         # Load existing tokens from database on startup
         self._load_tokens_from_db()
 
-    def get_discovery_metadata(self) -> Dict:
+    def get_discovery_metadata(self) -> dict:
         """OAuth 2.0 Authorization Server Metadata (RFC 8414)."""
         return {
             "issuer": self.base_url,
@@ -64,7 +65,7 @@ class OAuthServer:
             "require_signed_request_object": False,
         }
 
-    def get_protected_resource_metadata(self) -> Dict:
+    def get_protected_resource_metadata(self) -> dict:
         """OAuth 2.0 Protected Resource Metadata."""
         return {
             "resource": self.base_url,
@@ -74,7 +75,7 @@ class OAuthServer:
             "resource_documentation": f"{self.base_url}/docs",
         }
 
-    def register_client(self, client_metadata: Dict) -> Dict:
+    def register_client(self, client_metadata: dict) -> dict:
         """Dynamic Client Registration (RFC 7591)."""
         client_id = secrets.token_urlsafe(16)
         client_secret = secrets.token_urlsafe(32)
@@ -88,15 +89,15 @@ class OAuthServer:
         logger.debug("Generated client_id: %s", client_id)
 
         # For Claude.ai, automatically add common proxy redirect patterns
-        if "claude" in client_name.lower() or any(
-            "claude.ai" in uri for uri in redirect_uris
-        ):
+        if (
+            "claude" in client_name.lower()
+            or any("claude.ai" in uri for uri in redirect_uris)
+        ) and not any("claude.ai/api/organizations" in uri for uri in redirect_uris):
             # Add wildcard pattern for Claude proxy URLs
-            if not any("claude.ai/api/organizations" in uri for uri in redirect_uris):
-                redirect_uris.append(
-                    "https://claude.ai/api/organizations/*/mcp/oauth/callback"
-                )
-                logger.debug("Added Claude proxy redirect URI: %s", redirect_uris)
+            redirect_uris.append(
+                "https://claude.ai/api/organizations/*/mcp/oauth/callback"
+            )
+            logger.debug("Added Claude proxy redirect URI: %s", redirect_uris)
 
         # Use datastore to register client
         self.datastore.register_client(
@@ -114,7 +115,9 @@ class OAuthServer:
             "token_endpoint_auth_method": "none",  # Claude uses PKCE, no client secret needed
         }
 
-    def create_user(self, username: str, password: str, email: str = None) -> str:
+    def create_user(
+        self, username: str, password: str, email: str | None = None
+    ) -> str:
         """Create a new user account."""
         password_hash = generate_password_hash(password, method="scrypt")
         return self.datastore.create_user(username, password_hash, email)
@@ -123,16 +126,16 @@ class OAuthServer:
         """Register a new user account. Returns True if successful."""
         try:
             self.create_user(username, password, email)
-            return True
         except (ValueError, TypeError) as e:
             logger.warning("User registration failed: %s", e)
             return False
+        return True
 
-    def authenticate_user(self, username: str, password: str) -> Optional[str]:
+    def authenticate_user(self, username: str, password: str) -> str | None:
         """Authenticate user credentials."""
         return self.datastore.authenticate_user(username, password)
 
-    def validate_client(self, client_id: str, client_secret: str = None) -> bool:
+    def validate_client(self, client_id: str, client_secret: str | None = None) -> bool:
         """Validate client credentials."""
         logger.debug("Validating client_id: %s", client_id)
         result = self.datastore.validate_client(client_id, client_secret)
@@ -152,10 +155,10 @@ class OAuthServer:
                 client_id, client_secret, redirect_uris, client_name
             )
             logger.debug("Existing client registered successfully")
-            return True
-        except (ValueError, TypeError, KeyError) as e:
-            logger.error("Failed to register existing client: %s", e)
+        except (ValueError, TypeError, KeyError):
+            logger.exception("Failed to register existing client")
             return False
+        return True
 
     def validate_redirect_uri(self, client_id: str, redirect_uri: str) -> bool:
         """Validate redirect URI for client."""
@@ -227,8 +230,8 @@ class OAuthServer:
         client_id: str,
         redirect_uri: str,
         code_verifier: str,
-        client_secret: str = None,
-    ) -> Dict:
+        client_secret: str | None = None,
+    ) -> dict:
         """Exchange authorization code for access token."""
         if code not in self.auth_codes:
             raise ValueError("Invalid authorization code")
@@ -296,7 +299,7 @@ class OAuthServer:
             "scope": auth_data["scope"],
         }
 
-    def validate_access_token(self, access_token: str) -> Optional[Dict]:
+    def validate_access_token(self, access_token: str) -> dict | None:
         """Validate access token and return token info."""
         if access_token not in self.access_tokens:
             return None
@@ -310,7 +313,7 @@ class OAuthServer:
 
         return token_data
 
-    def refresh_access_token(self, refresh_token: str, client_id: str) -> Dict:
+    def refresh_access_token(self, refresh_token: str, client_id: str) -> dict:
         """Refresh access token using refresh token."""
         if refresh_token not in self.refresh_tokens:
             raise ValueError("Invalid refresh token")
@@ -380,5 +383,5 @@ class OAuthServer:
             access_tokens, refresh_tokens = self.datastore.load_valid_tokens()
             self.access_tokens.update(access_tokens)
             self.refresh_tokens.update(refresh_tokens)
-        except (OSError, IOError, ValueError) as e:
+        except (OSError, ValueError) as e:
             logger.warning("Could not load tokens from database: %s", e)

@@ -21,7 +21,10 @@ def log_tool_error(error: Exception, tool_name: str, context: str = ""):
     """Log tool error with full traceback."""
     try:
         tb_str = traceback.format_exc()
-        error_msg = f"Error in tool '{tool_name}' {context}: {str(error)}\n\nFull traceback:\n{tb_str}"
+        error_msg = f"""Error in tool '{tool_name}' {context}: {str(error)}
+
+Full traceback:
+{tb_str}"""
         logger.error(error_msg)
     except Exception as log_error:
         logger.error("Failed to log tool error: %s", log_error)

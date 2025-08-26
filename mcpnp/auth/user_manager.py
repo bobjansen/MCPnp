@@ -1,25 +1,22 @@
-"""
-Generic User Manager for MCP authentication.
+"""Generic User Manager for MCP authentication.
 
 Manages user authentication and database isolation for multi-user mode.
 """
 
-from typing import Callable, Optional
+from collections.abc import Callable
 
 
 class UserManager:
-    """
-    Generic user authentication manager for multi-user MCP servers.
+    """Generic user authentication manager for multi-user MCP servers.
 
     Can be configured with different database setup functions to work with
     various types of applications.
     """
 
     def __init__(
-        self, mode: str = "local", database_setup_func: Optional[Callable] = None
+        self, mode: str = "local", database_setup_func: Callable | None = None
     ):
-        """
-        Initialize user manager.
+        """Initialize user manager.
 
         Args:
             mode: "local" or "multiuser" mode
@@ -28,7 +25,7 @@ class UserManager:
         self.mode = mode  # "local" or "multiuser"
         self.database_setup_func = database_setup_func
 
-    def authenticate(self, token: str = None) -> Optional[str]:
+    def authenticate(self, token: str | None = None) -> str | None:
         """Authenticate a user by token and return user_id."""
         if self.mode == "local":
             return "local_user"

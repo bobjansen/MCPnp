@@ -10,11 +10,13 @@ import sys
 import threading
 import time
 from pathlib import Path
+
 import pytest
+
+from mcp_tool_router import MCPToolRouter
 
 # Import the MCP server directly for protocol testing
 from mcpnp.server import UnifiedMCPServer
-from mcp_tool_router import MCPToolRouter
 
 from .conftest import cleanup_test_environment
 

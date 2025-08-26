@@ -168,7 +168,7 @@ python check.py --fix
 
 The script validates:
 - **Black formatting** - Code style consistency
-- **Pylint analysis** - Code quality and standards
+- **Ruff analysis** - Code quality and standards
 - **Pytest execution** - All tests pass
 
 ### Running Tests
@@ -197,8 +197,8 @@ uv run black .
 ### Linting
 
 ```bash
-# Run pylint on all code
-uv run pylint mcpnp/ tests/ *.py
+# Run ruff on all code
+uv run ruff check mcpnp/ tests/ *.py
 ```
 
 ## Documentation

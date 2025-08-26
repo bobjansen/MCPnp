@@ -7,6 +7,7 @@ import asyncio
 import logging
 import os
 from io import StringIO
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -24,7 +25,7 @@ class TestMCPServerStartup:
         """Clean environment variables before and after tests."""
         # Store original values
         original_env = {}
-        mcp_vars = [key for key in os.environ if key.startswith(("MCP_"))]
+        mcp_vars = [key for key in os.environ if key.startswith("MCP_")]
         for var in mcp_vars:
             original_env[var] = os.environ[var]
             del os.environ[var]

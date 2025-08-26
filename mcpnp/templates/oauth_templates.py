@@ -1,6 +1,4 @@
-"""
-OAuth template rendering with inline HTML templates.
-"""
+"""OAuth template rendering with inline HTML templates."""
 
 from urllib.parse import urlencode
 
@@ -132,7 +130,7 @@ def generate_login_form(
             <strong>Application:</strong> {client_id}<br>
             <strong>Scope:</strong> {scope}
         </div>
-        
+
         <form method="post" action="/authorize">
             <input type="hidden" name="response_type" value="{response_type}">
             <input type="hidden" name="client_id" value="{client_id}">
@@ -141,20 +139,20 @@ def generate_login_form(
             <input type="hidden" name="state" value="{state}">
             <input type="hidden" name="code_challenge" value="{code_challenge}">
             <input type="hidden" name="code_challenge_method" value="{code_challenge_method}">
-            
+
             <div class="form-group">
                 <label for="username">Username:</label>
                 <input type="text" id="username" name="username" required>
             </div>
-            
+
             <div class="form-group">
                 <label for="password">Password:</label>
                 <input type="password" id="password" name="password" required>
             </div>
-            
+
             <button type="submit">Authorize Application</button>
         </form>
-        
+
         <div class="register-link">
             <a href="/register_user">Need an account? Register here</a>
         </div>
@@ -261,26 +259,26 @@ def generate_register_form() -> str:
         <div class="info">
             Create your MCPnp account to access OAuth-enabled applications.
         </div>
-        
+
         <form method="post" action="/register_user">
             <div class="form-group">
                 <label for="username">Username:</label>
                 <input type="text" id="username" name="username" required>
             </div>
-            
+
             <div class="form-group">
                 <label for="email">Email:</label>
                 <input type="email" id="email" name="email" required>
             </div>
-            
+
             <div class="form-group">
                 <label for="password">Password:</label>
                 <input type="password" id="password" name="password" required>
             </div>
-            
+
             <button type="submit">Create Account</button>
         </form>
-        
+
         <div class="back-link">
             <a href="javascript:history.back()">← Back to Login</a>
         </div>

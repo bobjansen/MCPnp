@@ -1,7 +1,7 @@
 """MCP Core Authentication components."""
 
-from .user_manager import UserManager
-from .oauth_server import OAuthServer
 from .oauth_handlers import OAuthFlowHandler
+from .oauth_server import OAuthServer
+from .user_manager import UserManager
 
-__all__ = ["UserManager", "OAuthServer", "OAuthFlowHandler"]
+__all__ = ["OAuthFlowHandler", "OAuthServer", "UserManager"]

@@ -1,24 +1,25 @@
-"""
-Generic MCP Context management.
+"""Generic MCP Context management.
 
 This module provides a generic context manager that can be configured with any
 data manager factory and database setup function.
 """
 
 import os
-from typing import Optional, Dict, Any, Callable
+from collections.abc import Callable
 from contextvars import ContextVar
-from ..auth.user_manager import UserManager
+from pathlib import Path
+from typing import Any
+
+from mcpnp.auth.user_manager import UserManager
 
 LOCAL_DB_PATH = "user.sqlite"
 
 # Context variable to store current user
-current_user: ContextVar[Optional[str]] = ContextVar("current_user", default=None)
+current_user: ContextVar[str | None] = ContextVar("current_user", default=None)
 
 
 class MCPContext:
-    """
-    Generic MCP server context for user authentication and resource management.
+    """Generic MCP server context for user authentication and resource management.
 
     This class can be configured with any data manager factory and database setup
     function to work with different types of applications.
@@ -26,11 +27,10 @@ class MCPContext:
 
     def __init__(
         self,
-        data_manager_factory: Optional[Callable] = None,
-        database_setup_func: Optional[Callable] = None,
+        data_manager_factory: Callable | None = None,
+        database_setup_func: Callable | None = None,
     ):
-        """
-        Initialize MCP context.
+        """Initialize MCP context.
 
         Args:
             data_manager_factory: Function to create data manager instances
@@ -38,7 +38,7 @@ class MCPContext:
         """
         self.mode = os.getenv("MCP_MODE", "local")  # "local" or "multiuser"
         self.user_manager = UserManager(self.mode, database_setup_func)
-        self.data_managers: Dict[str, Any] = {}
+        self.data_managers: dict[str, Any] = {}
 
         # Store the factory functions
         self.data_manager_factory = data_manager_factory
@@ -55,7 +55,7 @@ class MCPContext:
             if self.database_setup_func:
                 self.database_setup_func(db_path)
 
-    def authenticate_and_get_data_manager(self) -> tuple[Optional[str], Optional[Any]]:
+    def authenticate_and_get_data_manager(self) -> tuple[str | None, Any | None]:
         """Authenticate user and return their data manager instance."""
         if self.mode == "local":
             user_id = "local_user"
@@ -74,11 +74,11 @@ class MCPContext:
         """Set the current user in context."""
         current_user.set(user_id)
 
-    def get_current_user(self) -> Optional[str]:
+    def get_current_user(self) -> str | None:
         """Get the current user from context."""
         return current_user.get()
 
-    def get_data_manager(self, user_id: str) -> Optional[Any]:
+    def get_data_manager(self, user_id: str) -> Any | None:
         """Get data manager for a specific user."""
         if user_id in self.data_managers:
             return self.data_managers[user_id]
@@ -89,7 +89,7 @@ class MCPContext:
             db_path = f"user_data/{user_id}/user.sqlite"
 
             # Ensure directory exists
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            Path(db_path).parent.mkdir(exist_ok=True)
 
             # Create data manager instance
             data_manager = self.data_manager_factory(connection_string=db_path)
@@ -103,7 +103,7 @@ class MCPContext:
 
         return None
 
-    def create_user(self, username: str) -> Dict[str, Any]:
+    def create_user(self, username: str) -> dict[str, Any]:
         """Create a new user."""
         if self.mode == "local":
             return {
@@ -116,6 +116,6 @@ class MCPContext:
             success = self.user_manager.create_user(username)
             if success:
                 return {"status": "success", "message": f"User {username} created"}
-            return {"status": "error", "message": "User creation failed"}
         except Exception as e:
-            return {"status": "error", "message": f"User creation failed: {str(e)}"}
+            return {"status": "error", "message": f"User creation failed: {e!s}"}
+        return {"status": "error", "message": "User creation failed"}

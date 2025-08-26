@@ -43,7 +43,7 @@ def main():
     # Clean previous builds
     print("🧹 Cleaning previous builds...")
     for path in ["build", "dist", "*.egg-info"]:
-        subprocess.run(f"rm -rf {path}", shell=True)
+        subprocess.run(f"rm -rf {path}", check=True, shell=True)
 
     # Run quality checks first
     if not run_command("uv run python check.py --quick", "Quality checks"):

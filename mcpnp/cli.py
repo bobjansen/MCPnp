@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""
-MCPnp CLI - Command line interface for MCPnp framework.
+"""MCPnp CLI - Command line interface for MCPnp framework.
 
 Provides utilities for working with MCPnp servers and tools.
 """
 
-import sys
 import argparse
 import subprocess
+import sys
 from pathlib import Path
+
 from run_mcp import main as server_main
 
 

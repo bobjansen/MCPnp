@@ -1,13 +1,11 @@
-"""
-Base classes for MCP tool servers with decorator-based tool registration.
-"""
+"""Base classes for MCP tool servers with decorator-based tool registration."""
 
 import inspect
-from typing import Dict, Any, List
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import Any
 
 
-def tool(name: str, description: str = None):
+def tool(name: str, description: str | None = None):
     """Decorator for registering MCP tools with automatic schema generation.
 
     This is a standalone decorator that can be used directly on methods.
@@ -50,7 +48,7 @@ class MCPToolMeta(type):
 
         return cls
 
-    def _register_tool(cls, func, tool_name: str, description: str = None):
+    def _register_tool(cls, func, tool_name: str, description: str | None = None):
         """Register a single tool method."""
         # Extract parameter info from function signature
         sig = inspect.signature(func)
@@ -89,15 +87,15 @@ class MCPToolMeta(type):
     @staticmethod
     def _get_json_type(python_type) -> str:
         """Convert Python type annotations to JSON Schema types."""
-        if python_type == int:
+        if python_type is int:
             return "number"
-        if python_type == float:
+        if python_type is float:
             return "number"
-        if python_type == bool:
+        if python_type is bool:
             return "boolean"
-        if python_type == list:
+        if python_type is list:
             return "array"
-        if python_type == dict:
+        if python_type is dict:
             return "object"
         return "string"
 
@@ -121,7 +119,7 @@ class MCPToolServer(metaclass=MCPToolMeta):
                 return a + b
     """
 
-    def get_available_tools(self) -> List[Dict[str, Any]]:
+    def get_available_tools(self) -> list[dict[str, Any]]:
         """Return list of available tools with their schemas.
 
         This method is required by the UnifiedMCPServer.
@@ -129,8 +127,8 @@ class MCPToolServer(metaclass=MCPToolMeta):
         return self._tool_schemas
 
     def call_tool(
-        self, tool_name: str, arguments: Dict[str, Any], manager=None
-    ) -> Dict[str, Any]:
+        self, tool_name: str, arguments: dict[str, Any], manager=None
+    ) -> dict[str, Any]:
         """Route tool call to appropriate implementation.
 
         This method is required by the UnifiedMCPServer.
@@ -157,11 +155,11 @@ class MCPToolServer(metaclass=MCPToolMeta):
             return {
                 "status": "success",
                 "result": result,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
         except Exception as e:
-            return {"status": "error", "message": f"Tool execution failed: {str(e)}"}
+            return {"status": "error", "message": f"Tool execution failed: {e!s}"}
 
 
 class MCPDataServer(MCPToolServer):
@@ -174,9 +172,12 @@ class MCPDataServer(MCPToolServer):
         super().__init__()
         self.data_store = {}
 
-    def store_data(self, key: str, value: Any) -> Dict[str, Any]:
+    def store_data(self, key: str, value: Any) -> dict[str, Any]:
         """Store data with metadata."""
-        self.data_store[key] = {"value": value, "stored_at": datetime.now().isoformat()}
+        self.data_store[key] = {
+            "value": value,
+            "stored_at": datetime.now(UTC).isoformat(),
+        }
         return {"key": key, "stored_at": self.data_store[key]["stored_at"]}
 
     def get_data(self, key: str) -> Any:
@@ -185,7 +186,7 @@ class MCPDataServer(MCPToolServer):
             raise KeyError(f"Key '{key}' not found")
         return self.data_store[key]["value"]
 
-    def list_keys(self) -> List[str]:
+    def list_keys(self) -> list[str]:
         """List all stored keys."""
         return list(self.data_store.keys())
 

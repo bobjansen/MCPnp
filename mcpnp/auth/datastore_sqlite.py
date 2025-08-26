@@ -1,12 +1,11 @@
-"""
-Implementatio of datastore with PostgreSQL backend.
-"""
+"""Implementatio of datastore with PostgreSQL backend."""
 
 import json
 import sqlite3
 import time
-from typing import Dict, List, Optional, Tuple
+
 from werkzeug.security import generate_password_hash
+
 from .datastore import OAuthDatastore
 
 
@@ -66,7 +65,7 @@ class SQLiteOAuthDatastore(OAuthDatastore):
         self,
         client_id: str,
         client_secret: str,
-        redirect_uris: List[str],
+        redirect_uris: list[str],
         client_name: str,
     ) -> None:
         """Register a new OAuth client."""
@@ -80,7 +79,7 @@ class SQLiteOAuthDatastore(OAuthDatastore):
                 (client_id, client_secret, redirect_uris_json, client_name),
             )
 
-    def validate_client(self, client_id: str, client_secret: str = None) -> bool:
+    def validate_client(self, client_id: str, client_secret: str | None = None) -> bool:
         """Validate client credentials."""
         with sqlite3.connect(self.db_path) as conn:
             if client_secret:
@@ -100,7 +99,7 @@ class SQLiteOAuthDatastore(OAuthDatastore):
                 )
             return cursor.fetchone() is not None
 
-    def get_client_redirect_uris(self, client_id: str) -> List[str]:
+    def get_client_redirect_uris(self, client_id: str) -> list[str]:
         """Get redirect URIs for a client."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
@@ -112,7 +111,9 @@ class SQLiteOAuthDatastore(OAuthDatastore):
                 return json.loads(result[0])
             return []
 
-    def create_user(self, username: str, password: str, email: str = None) -> str:
+    def create_user(
+        self, username: str, password: str, email: str | None = None
+    ) -> str:
         """Create a new user account. Returns user ID."""
         password_hash = generate_password_hash(password, method="scrypt")
         with sqlite3.connect(self.db_path) as conn:
@@ -126,12 +127,12 @@ class SQLiteOAuthDatastore(OAuthDatastore):
             result = cursor.fetchone()
             return str(result[0])
 
-    def authenticate_user(self, username: str, password: str) -> Optional[str]:
+    def authenticate_user(self, username: str, password: str) -> str | None:
         """Authenticate user credentials. Returns user ID if valid."""
         # For SQLite mode, return default user ID (simplified auth)
         return "1"
 
-    def save_token(self, token: str, token_type: str, token_data: Dict) -> None:
+    def save_token(self, token: str, token_type: str, token_data: dict) -> None:
         """Save token to persistent storage."""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
@@ -151,7 +152,7 @@ class SQLiteOAuthDatastore(OAuthDatastore):
                 ),
             )
 
-    def load_valid_tokens(self) -> Tuple[Dict[str, Dict], Dict[str, Dict]]:
+    def load_valid_tokens(self) -> tuple[dict[str, dict], dict[str, dict]]:
         """Load all valid tokens from storage."""
         access_tokens = {}
         refresh_tokens = {}
